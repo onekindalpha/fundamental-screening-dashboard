@@ -1,0 +1,86 @@
+name: Daily Stock Screening
+
+on:
+  schedule:
+    # 오전 6시 KST (전날 21시 UTC)
+    - cron: '0 21 * * *'
+    # 정오 12시 KST (03시 UTC)
+    - cron: '0 3 * * *'
+    # 오후 6시 KST (09시 UTC)
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  screening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas requests yfinance lxml openpyxl numpy pykrx
+
+      - name: Run KOSPI screening
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          python kr_lynch_screener_one_shot_powerfix_rulefit_mirae_capadj_lynch333_v3_graham_fixed3_narrowdebt.py \
+            --dart-key "$DART_API_KEY" \
+            --bsns-year 2025 \
+            --codes "$(paste -sd, kospi_codes_manual.txt)" \
+            --tsv --out "results/kospi_screening_$(date +%Y%m%d_%H%M%S).tsv"
+
+      - name: Run KOSDAQ screening
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          python kr_lynch_screener_one_shot_powerfix_rulefit_mirae_capadj_lynch333_v3_graham_fixed3_narrowdebt.py \
+            --dart-key "$DART_API_KEY" \
+            --bsns-year 2025 \
+            --codes "$(paste -sd, kosdaq_codes_manual.txt)" \
+            --tsv --out "results/kosdaq_screening_$(date +%Y%m%d_%H%M%S).tsv"
+
+      - name: Add timing checks to KOSPI
+        run: |
+          KOSPI_FILE=$(ls -t results/kospi_screening_*.tsv | head -1)
+          python add_pykrx_timing_checks_bookstyle_preserve_all_tsv_merged.py \
+            --input "$KOSPI_FILE" \
+            --output "${KOSPI_FILE%.*}_checked.tsv"
+
+      - name: Add timing checks to KOSDAQ
+        run: |
+          KOSDAQ_FILE=$(ls -t results/kosdaq_screening_*.tsv | head -1)
+          python add_pykrx_timing_checks_bookstyle_preserve_all_tsv_merged.py \
+            --input "$KOSDAQ_FILE" \
+            --output "${KOSDAQ_FILE%.*}_checked.tsv"
+
+      - name: Process and sort results
+        run: |
+          python process_screening.py
+
+      - name: Upload results as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: screening-results-${{ github.run_id }}
+          path: results/
+          retention-days: 30
+
+      - name: Commit and push results
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "📊 Daily screening results - $(date +%Y-%m-%d\ %H:%M:%S)" || echo "No changes to commit"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
