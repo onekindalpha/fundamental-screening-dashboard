@@ -516,7 +516,7 @@ def render_cash_debt_summary(row: pd.Series):
         {"구분": "순현금", "항목": "린치식 순현금", "값": fmt(vals["순현금_린치식"], 0), "해석": "현금성자산 - 장기부채"},
         {"구분": "순현금", "항목": "보수형 순현금", "값": fmt(vals["순현금_보수형"], 0), "해석": "현금성자산 - 장기부채 - 단기위험부채"},
     ]
-    st.dataframe(pd.DataFrame(table_rows), width="stretch", hide_index=True)
+    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
 
 def render_short_risky_debt_detail(row: pd.Series):
@@ -534,7 +534,7 @@ def render_short_risky_debt_detail(row: pd.Series):
         {"구분": "어음/CP 계열", "후보 항목": "상업어음", "대시보드 표시": "총액에 포함 가능", "비고": "단기 상환 압박 가능"},
         {"구분": "시장성 단기조달", "후보 항목": "전자단기사채", "대시보드 표시": "총액에 포함 가능", "비고": "한국 공시 실무 확장 항목"},
     ]
-    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True, height=210)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=210)
     st.caption("세부 항목별 금액까지 보려면 스크리너 원본에서 단기차입금/유동차입금/기업어음/상업어음/전자단기사채를 각각 별도 컬럼으로 출력해야 합니다.")
 
 
@@ -660,23 +660,23 @@ def render_company_overview(row: pd.Series):
         st.markdown("**공시 / 종목 리포트 바로가기**")
         b1, b2, b3, b4 = st.columns([1, 1, 1, 1])
         with b1:
-            st.link_button("DART 공시", dart_search_url(name), width="stretch")
+            st.link_button("DART 공시", dart_search_url(name), use_container_width=True)
         with b2:
-            st.link_button("FnGuide Snapshot", fnguide_url(code), width="stretch")
+            st.link_button("FnGuide Snapshot", fnguide_url(code), use_container_width=True)
         with b3:
-            st.link_button("FnGuide Consensus", fnguide_consensus_url(code), width="stretch")
+            st.link_button("FnGuide Consensus", fnguide_consensus_url(code), use_container_width=True)
         with b4:
-            st.link_button("한경컨센서스", hankyung_consensus_url(code), width="stretch")
+            st.link_button("한경컨센서스", hankyung_consensus_url(code), use_container_width=True)
 
         b5, b6, b7, b8 = st.columns([1, 1, 1, 1])
         with b5:
-            st.link_button("네이버 종목", naver_finance_url(code), width="stretch")
+            st.link_button("네이버 종목", naver_finance_url(code), use_container_width=True)
         with b6:
-            st.link_button("네이버 리서치 목록", naver_research_company_list_url(), width="stretch")
+            st.link_button("네이버 리서치 목록", naver_research_company_list_url(), use_container_width=True)
         with b7:
-            st.link_button("Google PDF 리포트 검색", google_pdf_report_search_url(name, code), width="stretch")
+            st.link_button("Google PDF 리포트 검색", google_pdf_report_search_url(name, code), use_container_width=True)
         with b8:
-            st.link_button("KRX KIND 보고서 검색", kind_report_search_url(name, code), width="stretch")
+            st.link_button("KRX KIND 보고서 검색", kind_report_search_url(name, code), use_container_width=True)
 
 
 def render_sector_guidance(row: pd.Series):
@@ -781,12 +781,12 @@ def render_financial_table(row: pd.Series):
         st.markdown("**원천 재무값**")
         raw_df = make_rows(raw_cols)
         if not raw_df.empty:
-            st.dataframe(raw_df, width="stretch", hide_index=True, height=360)
+            st.dataframe(raw_df, use_container_width=True, hide_index=True, height=360)
     with c2:
         st.markdown("**계산 지표**")
         calc_df = make_rows(calc_cols)
         if not calc_df.empty:
-            st.dataframe(calc_df, width="stretch", hide_index=True, height=360)
+            st.dataframe(calc_df, use_container_width=True, hide_index=True, height=360)
 
 
 def render_detail(row: pd.Series, show_excash_pe: bool):
@@ -821,7 +821,7 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
             ("판정구분", fmt(row.get("판정구분"))),
             ("단기위험부채", fmt(row.get("단기위험부채"))),
         ]
-        st.dataframe(pd.DataFrame(base_rows, columns=["항목", "값"]), width="stretch", hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(base_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
 
     with mid:
         st.markdown("#### 린치")
@@ -838,7 +838,7 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
                 ("순현금차감PER(린치식)", fmt(row.get("순현금차감PER(린치식)"))),
                 ("순현금차감PER(보수형)", fmt(row.get("순현금차감PER(보수형)"))),
             ]
-        st.dataframe(pd.DataFrame(lynch_rows, columns=["항목", "값"]), width="stretch", hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(lynch_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
 
     with right:
         st.markdown("#### 그레이엄")
@@ -850,7 +850,7 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
             ("5년 괴리율", fmt(row.get("그레이엄괴리율(5년,%)"))),
             ("선택 괴리율", fmt(row.get("그레이엄괴리율(선택,%)"))),
         ]
-        st.dataframe(pd.DataFrame(graham_rows, columns=["항목", "값"]), width="stretch", hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(graham_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
 
     render_cash_debt_summary(row)
 
@@ -915,7 +915,7 @@ def dataframe_with_optional_selection(table: pd.DataFrame):
 
     edited = st.data_editor(
         work,
-        width="stretch",
+        use_container_width=True,
         height=470,
         hide_index=True,
         disabled=disabled_cols,
@@ -964,7 +964,7 @@ def main():
         show_excash_pe = st.checkbox("순현금차감PER 표시", value=False)
 
         st.markdown("---")
-        if st.button("🔄 새로고침", width="stretch"):
+        if st.button("🔄 새로고침", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
