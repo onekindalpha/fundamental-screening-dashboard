@@ -89,7 +89,7 @@ def apply_filters(df, filters: dict):
     """필터 적용"""
     filtered_df = df.copy()
 
-    # 음수 값 제외 필터 (피터린치 스타일)
+    # 음수 값 제외 필터
     if filters['exclude_negative']:
         exclude_mask = pd.Series([True] * len(filtered_df), index=filtered_df.index)
 
@@ -112,15 +112,6 @@ def apply_filters(df, filters: dict):
                 exclude_mask &= (filtered_df[col] >= 0)
 
         filtered_df = filtered_df[exclude_mask]
-
-    # 하드웨어 필터
-    if filters['hardware'] != '전체':
-        for col in filtered_df.columns:
-            if '하드웨어' in col:
-                if filters['hardware'] == 'Yes':
-                    filtered_df = filtered_df[filtered_df[col] == 'Y']
-                elif filters['hardware'] == 'No':
-                    filtered_df = filtered_df[filtered_df[col] == 'N']
 
     return filtered_df
 
@@ -155,9 +146,6 @@ def main():
         st.markdown("---")
         st.markdown("### 필터링 옵션")
 
-        # 필터 옵션 토글
-        st.markdown("#### 🎯 피터린치 스타일 필터")
-
         exclude_negative = st.checkbox(
             '음수 값 제외하기',
             value=True,
@@ -178,19 +166,9 @@ def main():
             - 비고에서 위험 신호 확인하세요
             """)
 
-        st.markdown("---")
-
         # 필터 설정
         filters = {
-            'exclude_negative': exclude_negative,
-            'min_cash': 0,  # 기본값
-            'min_fcf': 0,   # 기본값
-            'min_short_debt': 0,  # 기본값
-            'hardware': st.selectbox(
-                '하드웨어',
-                options=['전체', 'Yes', 'No'],
-                help='Y: 하드웨어 관련 기업'
-            )
+            'exclude_negative': exclude_negative
         }
 
         st.markdown("---")
@@ -200,17 +178,30 @@ def main():
             st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📌 설정 가이드")
-        st.info("""
-        **피터린치 스타일:**
-        - P/E 배수가 낮을수록 좋음
-        - 배당금 지급하는 기업 선호
-        - 영업이익 증가세 확인
+        st.markdown("### 📖 분석 방법")
+        with st.expander("🔍 상세 설명"):
+            st.markdown("""
+            #### **피터 린치 파트**
+            - 성장률 대비 가격이 싼 기업을 찾습니다.
+            - 핵심 지표는 **Lynch P/E 배수**입니다.
+            - `0.5 이하 = 매우 유망`, `1 미만 = 헐값`으로 봅니다.
+            - 주당순현금과 FCF가 플러스인 기업을 더 선호합니다.
 
-        **그레이엄 스타일:**
-        - 내재가치 대비 괴리율 낮음
-        - 안정적인 현금 흐름
-        """)
+            #### **배당감안 파트**
+            - 배당까지 포함한 성장의 질을 점검합니다.
+            - `배당감안점수 >= 2.0`이면 강한 편, `>= 1.5`면 양호로 봅니다.
+
+            #### **그레이엄 파트**
+            - EPS와 성장률로 적정P/E / 내재가치 / 괴리율을 계산합니다.
+            - 괴리율이 높고 양수일수록 현재가 대비 저평가 가능성이 큽니다.
+            - **현재는 보조 해석용**으로 봅니다.
+
+            #### **종합판정**
+            - **린치 중심 + 배당감안 보강형**입니다.
+            - 즉, 하드필터 + 배당감안점수 + 린치P/E배수를 합쳐 최종 판단합니다.
+            """)
+
+
 
     # 메인 콘텐츠
     df, latest_file = load_screening_data(market)
