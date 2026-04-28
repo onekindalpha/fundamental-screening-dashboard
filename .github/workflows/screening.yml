@@ -2,6 +2,16 @@ name: Daily Stock Screening
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "실행 모드: 가격 디버그 먼저 돌리고, 통과하면 full 실행"
+        required: true
+        default: "debug_prices"
+        type: choice
+        options:
+          - debug_prices
+          - smoke_kospi
+          - full
   schedule:
     # 16:00 KST = 07:00 UTC, Monday-Friday
     - cron: "0 7 * * 1-5"
@@ -27,7 +37,58 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-actions.txt
 
+      # 1) 가장 먼저 이것만 돌려서 GitHub runner에서 Yahoo 가격이 잡히는지 확인
+      #    이 모드는 200개/150개 전체 스크리닝을 돌리지 않음.
+      - name: Debug Yahoo prices only
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'debug_prices' }}
+        run: |
+          python debug_yahoo_prices.py
+
+      # 2) KOSPI 대표 3개만 실제 스크리너로 돌려서 현재가/린치 지표가 살아나는지 확인
+      #    이 모드도 전체 스크리닝/commit을 하지 않음.
+      - name: Smoke test KOSPI screener
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'smoke_kospi' }}
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          python -u kr_lynch_screener_one_shot_powerfix_rulefit_mirae_capadj_lynch333_v3_graham_fixed3_narrowdebt.py \
+            --dart-key "$DART_API_KEY" \
+            --bsns-year 2025 \
+            --codes "005930,000660,000270" \
+            --tsv \
+            --out "smoke_kospi.tsv"
+
+          python - <<'PY'
+          import pandas as pd
+          from pathlib import Path
+
+          path = Path("smoke_kospi_raw.tsv")
+          if not path.exists():
+              path = Path("smoke_kospi.tsv")
+          print("SMOKE_FILE:", path, "exists=", path.exists())
+
+          df = pd.read_csv(path, sep="\t", dtype=str).fillna("")
+          cols = [
+              "종목코드", "종목명", "현재가", "EPS(FY2025)",
+              "순현금차감PER(린치식)", "린치PER배수", "린치PER판정",
+              "배당감안점수", "배당감안점수판정", "종합판정"
+          ]
+          cols = [c for c in cols if c in df.columns]
+          print(df[cols].to_string(index=False))
+
+          required = ["현재가", "EPS(FY2025)", "순현금차감PER(린치식)"]
+          for c in required:
+              if c not in df.columns:
+                  raise SystemExit(f"MISSING COLUMN: {c}")
+              nonempty = df[c].astype(str).str.strip().replace({"nan":"", "None":"", "-":""}).ne("").sum()
+              print(f"{c}: {nonempty}/{len(df)}")
+              if nonempty == 0:
+                  raise SystemExit(f"SMOKE FAILED: {c} is empty")
+          PY
+
+      # 3) schedule 또는 full 수동 실행일 때만 전체 스크리닝
       - name: Run KOSPI 200 screener
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'full' }}
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
         run: |
@@ -39,6 +100,7 @@ jobs:
             --out "daily_국장_코스피200_스크리닝.tsv"
 
       - name: Run KOSDAQ 150 screener
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'full' }}
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
         run: |
@@ -50,6 +112,7 @@ jobs:
             --out "daily_국장_코스닥150_스크리닝.tsv"
 
       - name: Prepare dashboard result files
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'full' }}
         run: |
           rm -f results/*.tsv
           mkdir -p results
@@ -62,6 +125,7 @@ jobs:
           python process_screening.py
 
       - name: Commit updated results
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'full' }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
