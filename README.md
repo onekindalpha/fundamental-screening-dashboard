@@ -8,9 +8,7 @@
 
 ## 🔗 대시보드
 
-> Streamlit 배포 후 아래 링크만 실제 앱 주소로 교체하세요.
-
-**Dashboard:** https://YOUR-APP-NAME.streamlit.app
+**Dashboard:** https://peter-lynch-benjamin-graham-zw4fltw28rwfvafz8nvy67.streamlit.app
 
 ---
 
