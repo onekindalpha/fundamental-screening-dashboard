@@ -289,8 +289,133 @@ def load_screening_data(market: str):
     return df, latest
 
 
-def add_comparison_columns(df: pd.DataFrame, eps_basis: str, graham_basis: str) -> pd.DataFrame:
+
+def _missing_mask(s: pd.Series) -> pd.Series:
+    return s.map(lambda x: clean_text(x) in {"", "-"})
+
+
+def _choose_growth_series(df: pd.DataFrame, eps_basis: str) -> tuple[pd.Series, str]:
+    if eps_basis != "자동":
+        col = EPS_BASIS_COL.get(eps_basis, "연간이익증가율(3년CAGR,%)")
+        return num_series(df, col), eps_basis
+
+    if "사용연성장률(%)" in df.columns:
+        out = num_series(df, "사용연성장률(%)")
+    else:
+        out = pd.Series(np.nan, index=df.index)
+    for label, col in [("3년", "연간이익증가율(3년CAGR,%)"), ("5년", "연간이익증가율(5년CAGR,%)"), ("1년", "연간이익증가율(1년,%)")]:
+        cand = num_series(df, col)
+        m = out.isna() & cand.notna()
+        out.loc[m] = cand.loc[m]
+    return out, "자동"
+
+
+def _classify_lynch_ratio(x) -> str:
+    v = to_num(x)
+    if pd.isna(v):
+        return "판정불가"
+    if v <= 0.5:
+        return "매우 유망"
+    if v < 1:
+        return "헐값"
+    if v < 2:
+        return "보통"
+    return "매우 불리"
+
+
+def _classify_dividend_score(x) -> str:
+    v = to_num(x)
+    if pd.isna(v):
+        return "판정불가"
+    if v >= 2:
+        return "안심(>=2)"
+    if v >= 1.5:
+        return "양호(>=1.5)"
+    if v >= 1:
+        return "보통(1~1.5)"
+    return "불리(<1)"
+
+
+def _hard_filter_from_values(df: pd.DataFrame) -> pd.Series:
+    net_cash = num_series(df, "주당순현금(린치식)")
+    fcf_col = first_existing(["주당잉여현금흐름", "FCF per Share", "FCF"], df)
+    fcf = num_series(df, fcf_col) if fcf_col else pd.Series(np.nan, index=df.index)
+    ex_pe = num_series(df, "순현금차감PER(린치식)")
+    return (net_cash > 0) & (fcf > 0) & (ex_pe > 0)
+
+
+def repair_derived_metrics(df: pd.DataFrame, eps_basis: str) -> pd.DataFrame:
+    """Actions 결과 TSV에서 린치/배당감안 파생 컬럼이 비어 있을 때 대시보드에서 보정한다."""
     out = df.copy()
+
+    if "순현금차감PER(린치식)" not in out.columns:
+        out["순현금차감PER(린치식)"] = np.nan
+    ex_pe = num_series(out, "순현금차감PER(린치식)")
+    price = num_series(out, "현재가")
+    eps = num_series(out, "EPS(FY2025)")
+    net_cash = num_series(out, "주당순현금(린치식)")
+    calc_ex_pe = (price - net_cash) / eps.replace(0, np.nan)
+    m = ex_pe.isna() & calc_ex_pe.notna()
+    out.loc[m, "순현금차감PER(린치식)"] = calc_ex_pe.loc[m]
+    ex_pe = num_series(out, "순현금차감PER(린치식)")
+
+    growth, _ = _choose_growth_series(out, eps_basis)
+    div_yield = num_series(out, "배당수익률(%)")
+
+    if "린치PER배수" not in out.columns:
+        out["린치PER배수"] = np.nan
+    ratio = num_series(out, "린치PER배수")
+    calc_ratio = ex_pe / growth.replace(0, np.nan)
+    calc_ratio = calc_ratio.where((ex_pe > 0) & (growth > 0))
+    m = ratio.isna() & calc_ratio.notna()
+    out.loc[m, "린치PER배수"] = calc_ratio.loc[m]
+
+    if "배당감안점수" not in out.columns:
+        out["배당감안점수"] = np.nan
+    adj = num_series(out, "배당감안점수")
+    calc_adj = (growth + div_yield.fillna(0)) / ex_pe.replace(0, np.nan)
+    calc_adj = calc_adj.where((ex_pe > 0) & (growth > 0))
+    m = adj.isna() & calc_adj.notna()
+    out.loc[m, "배당감안점수"] = calc_adj.loc[m]
+
+    if "린치PER판정" not in out.columns:
+        out["린치PER판정"] = ""
+    m = _missing_mask(out["린치PER판정"])
+    out.loc[m, "린치PER판정"] = out.loc[m, "린치PER배수"].map(_classify_lynch_ratio)
+
+    if "배당감안점수판정" not in out.columns:
+        out["배당감안점수판정"] = ""
+    m = _missing_mask(out["배당감안점수판정"])
+    out.loc[m, "배당감안점수판정"] = out.loc[m, "배당감안점수"].map(_classify_dividend_score)
+
+    if "사용연성장률(%)" not in out.columns:
+        out["사용연성장률(%)"] = np.nan
+    use_growth = num_series(out, "사용연성장률(%)")
+    m = use_growth.isna() & growth.notna()
+    out.loc[m, "사용연성장률(%)"] = growth.loc[m]
+
+    if "사용연성장률기준" not in out.columns:
+        out["사용연성장률기준"] = ""
+    m = _missing_mask(out["사용연성장률기준"])
+    out.loc[m, "사용연성장률기준"] = eps_basis
+
+    if "종합판정" not in out.columns:
+        out["종합판정"] = ""
+    m = _missing_mask(out["종합판정"])
+    hard = _hard_filter_from_values(out)
+    ratio2 = num_series(out, "린치PER배수")
+    adj2 = num_series(out, "배당감안점수")
+    recovered = pd.Series("보류", index=out.index, dtype=object)
+    recovered.loc[~hard] = "제외"
+    recovered.loc[hard & (ratio2 <= 0.5) & (adj2 >= 2)] = "매우 유망"
+    recovered.loc[hard & (ratio2 < 1) & (adj2 >= 1.5) & (recovered != "매우 유망")] = "양호"
+    recovered.loc[ratio2.isna() | adj2.isna()] = "판정불가"
+    out.loc[m, "종합판정"] = recovered.loc[m]
+
+    return out
+
+def add_comparison_columns(df: pd.DataFrame, eps_basis: str, graham_basis: str) -> pd.DataFrame:
+    out = repair_derived_metrics(df, eps_basis)
 
     eps_col = EPS_BASIS_COL.get(eps_basis, "연간이익증가율(3년CAGR,%)")
     graham_col = GRAHAM_BASIS_COL.get(graham_basis, "그레이엄괴리율(3년,%)")
@@ -988,13 +1113,16 @@ def main():
     st.markdown("### 판정 필터")
     st.caption("판정은 정렬이 아니라 필터입니다. 아무것도 선택하지 않으면 전체를 보여줍니다.")
 
+    # Actions 결과에서 파생 판정 컬럼이 비어 있을 수 있어, 필터 옵션도 3년 기준으로 1차 복구해서 만든다.
+    filter_option_df = repair_derived_metrics(df, "3년")
+
     f1, f2, f3 = st.columns(3)
     with f1:
-        selected_overall = set(st.multiselect("종합판정 (with filter)", unique_values(df, "종합판정"), default=[], placeholder="전체"))
+        selected_overall = set(st.multiselect("종합판정 (with filter)", unique_values(filter_option_df, "종합판정"), default=[], placeholder="전체"))
     with f2:
-        selected_lynch = set(st.multiselect("린치PER판정* (Ex-Cash PEG)", unique_values(df, "린치PER판정"), default=[], placeholder="전체"))
+        selected_lynch = set(st.multiselect("린치PER판정* (Ex-Cash PEG)", unique_values(filter_option_df, "린치PER판정"), default=[], placeholder="전체"))
     with f3:
-        selected_dividend = set(st.multiselect("배당감안판정* (Ex-Cash PEGY)", unique_values(df, "배당감안점수판정"), default=[], placeholder="전체"))
+        selected_dividend = set(st.multiselect("배당감안판정* (Ex-Cash PEGY)", unique_values(filter_option_df, "배당감안점수판정"), default=[], placeholder="전체"))
 
     st.markdown("---")
     st.markdown(f"### {market} 유망주 랭킹")
