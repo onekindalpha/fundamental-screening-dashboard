@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "실행 모드: 가격 디버그 먼저 돌리고, 통과하면 full 실행"
+        description: "실행 모드: 가격소스 디버그 → smoke → full 순서 권장"
         required: true
-        default: "debug_prices"
+        default: "debug_price_sources"
         type: choice
         options:
-          - debug_prices
+          - debug_price_sources
           - smoke_kospi
           - full
   schedule:
@@ -37,15 +37,66 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-actions.txt
 
-      # 1) 가장 먼저 이것만 돌려서 GitHub runner에서 Yahoo 가격이 잡히는지 확인
-      #    이 모드는 200개/150개 전체 스크리닝을 돌리지 않음.
-      - name: Debug Yahoo prices only
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'debug_prices' }}
+      # Yahoo가 GitHub runner에서 rate limit될 수 있어서, pykrx fallback이 되는지만 먼저 본다.
+      - name: Debug price sources only
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'debug_price_sources' }}
         run: |
-          python debug_yahoo_prices.py
+          python - <<'PY'
+          from datetime import datetime, timedelta
 
-      # 2) KOSPI 대표 3개만 실제 스크리너로 돌려서 현재가/린치 지표가 살아나는지 확인
-      #    이 모드도 전체 스크리닝/commit을 하지 않음.
+          codes = ["005930", "000660", "000270", "035420", "091990", "196170"]
+
+          print("=" * 80)
+          print("1) Yahoo Finance check - rate limit이 떠도 여기서는 실패로 보지 않음")
+          print("=" * 80)
+          try:
+              import yfinance as yf
+              for code in codes:
+                  suffix = "KQ" if code in {"091990", "196170"} else "KS"
+                  ticker = f"{code}.{suffix}"
+                  try:
+                      hist = yf.Ticker(ticker).history(period="5d", auto_adjust=False)
+                      if hist is not None and not hist.empty and "Close" in hist.columns:
+                          s = hist["Close"].dropna()
+                          print(ticker, "YAHOO_CLOSE=", float(s.iloc[-1]) if not s.empty else None)
+                      else:
+                          print(ticker, "YAHOO_NO_DATA")
+                  except Exception as e:
+                      print(ticker, "YAHOO_ERROR=", repr(e))
+          except Exception as e:
+              print("YAHOO_IMPORT_ERROR=", repr(e))
+
+          print("=" * 80)
+          print("2) pykrx check - GitHub Actions에서는 이 값이 반드시 잡혀야 함")
+          print("=" * 80)
+          from pykrx import stock
+
+          end_dt = datetime.today()
+          start_dt = end_dt - timedelta(days=14)
+          start = start_dt.strftime("%Y%m%d")
+          end = end_dt.strftime("%Y%m%d")
+
+          ok = 0
+          for code in codes:
+              try:
+                  df = stock.get_market_ohlcv_by_date(start, end, code)
+                  if df is not None and not df.empty and "종가" in df.columns:
+                      s = df["종가"].dropna()
+                      close = float(s.iloc[-1]) if not s.empty else None
+                      print(code, "PYKRX_CLOSE=", close)
+                      if close is not None and close > 0:
+                          ok += 1
+                  else:
+                      print(code, "PYKRX_NO_DATA")
+              except Exception as e:
+                  print(code, "PYKRX_ERROR=", repr(e))
+
+          print(f"PYKRX_OK={ok}/{len(codes)}")
+          if ok < 3:
+              raise SystemExit("pykrx price source failed on GitHub runner")
+          PY
+
+      # KOSPI 대표 3개만 실제 스크리너로 돌려서 현재가/린치 지표가 살아나는지 확인
       - name: Smoke test KOSPI screener
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'smoke_kospi' }}
         env:
@@ -70,7 +121,8 @@ jobs:
           df = pd.read_csv(path, sep="\t", dtype=str).fillna("")
           cols = [
               "종목코드", "종목명", "현재가", "EPS(FY2025)",
-              "순현금차감PER(린치식)", "린치PER배수", "린치PER판정",
+              "순현금차감PER(린치식)", "연간이익증가율(3년CAGR,%)",
+              "린치PER배수", "린치PER판정",
               "배당감안점수", "배당감안점수판정", "종합판정"
           ]
           cols = [c for c in cols if c in df.columns]
@@ -86,7 +138,7 @@ jobs:
                   raise SystemExit(f"SMOKE FAILED: {c} is empty")
           PY
 
-      # 3) schedule 또는 full 수동 실행일 때만 전체 스크리닝
+      # schedule 또는 full 수동 실행일 때만 전체 스크리닝
       - name: Run KOSPI 200 screener
         if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'full' }}
         env:

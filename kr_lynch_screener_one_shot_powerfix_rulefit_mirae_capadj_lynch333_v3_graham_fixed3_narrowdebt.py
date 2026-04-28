@@ -42,6 +42,7 @@ import re
 import sys
 import time
 import zipfile
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -352,7 +353,8 @@ def yahoo_symbol(code: str) -> str:
     return f"{code}.{meta['suffix']}"
 
 
-def fetch_prices(codes: List[str]) -> Dict[str, Optional[float]]:
+def _fetch_prices_yahoo(codes: List[str]) -> Dict[str, Optional[float]]:
+    """Fetch latest close from Yahoo Finance. Returns None per code on failure."""
     out: Dict[str, Optional[float]] = {}
     symbols = {c: yahoo_symbol(c) for c in codes}
     for i, (code, symbol) in enumerate(symbols.items(), 1):
@@ -360,17 +362,66 @@ def fetch_prices(codes: List[str]) -> Dict[str, Optional[float]]:
             hist = yf.Ticker(symbol).history(period="10d", auto_adjust=False)
             price = None
             if hist is not None and not hist.empty:
-                s = hist["Close"].dropna()
-                if not s.empty:
-                    price = float(s.iloc[-1])
+                ss = hist["Close"].dropna()
+                if not ss.empty:
+                    price = float(ss.iloc[-1])
             out[code] = price
         except Exception:
             out[code] = None
         if i <= 5 or i % 5 == 0:
-            log(f"Price fetch {i}/{len(symbols)}")
+            log(f"Yahoo price fetch {i}/{len(symbols)}")
         time.sleep(0.05)
     return out
 
+
+def _fetch_prices_pykrx(codes: List[str]) -> Dict[str, Optional[float]]:
+    """Fallback latest close from pykrx. Works for both KOSPI and KOSDAQ 6-digit codes."""
+    out: Dict[str, Optional[float]] = {c: None for c in codes}
+    try:
+        from pykrx import stock  # type: ignore
+    except Exception as e:
+        log(f"pykrx price fallback unavailable: {e}")
+        return out
+
+    end_dt = datetime.today()
+    start_dt = end_dt - timedelta(days=14)
+    start = start_dt.strftime("%Y%m%d")
+    end = end_dt.strftime("%Y%m%d")
+
+    for i, code in enumerate(codes, 1):
+        try:
+            df = stock.get_market_ohlcv_by_date(start, end, code)
+            price = None
+            if df is not None and not df.empty and "종가" in df.columns:
+                ss = df["종가"].dropna()
+                if not ss.empty:
+                    price = float(ss.iloc[-1])
+            out[code] = price
+        except Exception:
+            out[code] = None
+        if i <= 5 or i % 5 == 0:
+            log(f"pykrx price fallback {i}/{len(codes)}")
+        time.sleep(0.02)
+    return out
+
+
+def fetch_prices(codes: List[str]) -> Dict[str, Optional[float]]:
+    """Fetch prices using Yahoo first, then pykrx fallback for missing Korean tickers."""
+    out = _fetch_prices_yahoo(codes)
+    missing = [c for c in codes if out.get(c) is None]
+    ok = len(codes) - len(missing)
+    log(f"Yahoo prices collected: {ok}/{len(codes)}")
+
+    if missing:
+        log(f"Falling back to pykrx for {len(missing)} missing prices")
+        krx_prices = _fetch_prices_pykrx(missing)
+        for c, v in krx_prices.items():
+            if v is not None:
+                out[c] = v
+
+    final_ok = sum(1 for c in codes if out.get(c) is not None)
+    log(f"Final prices collected: {final_ok}/{len(codes)}")
+    return out
 
 def choose_fit_class(group: str) -> str:
     if group in BANK_TELCO_GROUPS:
