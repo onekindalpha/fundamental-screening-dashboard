@@ -267,9 +267,10 @@ def first_existing(cols: Iterable[str], df: pd.DataFrame) -> Optional[str]:
     return None
 
 
-@st.cache_data(show_spinner=False)
 def load_screening_data(market: str):
-    """가능하면 원본 판정이 살아있는 _checked.tsv를 우선 로드한다."""
+    """가능하면 원본 판정이 살아있는 _checked.tsv를 우선 로드한다.
+    Streamlit Cloud에서 오래된 results 파일명이 cache에 남는 문제를 피하려고 cache를 쓰지 않는다.
+    """
     m = market.lower()
     checked_files = sorted(glob.glob(f"results/{m}_screening_*_checked.tsv"), reverse=True)
     sorted_files = sorted(glob.glob(f"results/{m}_screening_*_sorted.tsv"), reverse=True)
@@ -1008,7 +1009,7 @@ def main():
         sort_mode = st.selectbox("정렬 우선 방식", list(SORT_MODE_SPECS.keys()), index=0)
 
     st.markdown(
-        f"<div class='info-box'>현재 기준: EPS성장률 <b>{eps_basis}</b> / 그레이엄괴리율 <b>{graham_basis}</b> / 정렬 <b>{sort_mode}</b> / 데이터 <b>{Path(latest_file).name}</b></div>",
+        f"<div class='info-box'>현재 기준: EPS성장률 <b>{eps_basis}</b> / 그레이엄괴리율 <b>{graham_basis}</b> / 정렬 <b>{sort_mode}</b> / 데이터 <b>{Path(str(latest_file)).name if latest_file else '-'}</b></div>",
         unsafe_allow_html=True,
     )
 
@@ -1027,7 +1028,11 @@ def main():
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📊 전체 종목 수", len(df))
     c2.metric("✅ 현재 표시 종목 수", len(ranked_df))
-    update_datetime = datetime.fromtimestamp(Path(latest_file).stat().st_mtime).strftime("%m-%d %H:%M")
+    latest_path = Path(str(latest_file)) if latest_file else None
+    if latest_path is not None and latest_path.exists():
+        update_datetime = datetime.fromtimestamp(latest_path.stat().st_mtime).strftime("%m-%d %H:%M")
+    else:
+        update_datetime = "파일 갱신 확인 필요"
     c3.metric("🕐 마지막 업데이트", update_datetime)
     c4.metric("🏭 그룹 수", df["그룹"].nunique() if "그룹" in df.columns else 0)
 
