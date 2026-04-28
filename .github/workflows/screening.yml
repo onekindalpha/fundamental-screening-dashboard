@@ -51,21 +51,14 @@ jobs:
 
       - name: Prepare dashboard result files
         run: |
+          rm -f results/*.tsv
           mkdir -p results
           TODAY=$(date +%Y%m%d)
 
-          if [ -f "daily_국장_코스피200_스크리닝_raw.tsv" ]; then
-            cp "daily_국장_코스피200_스크리닝_raw.tsv" "results/kospi_screening_${TODAY}_checked.tsv"
-          else
-            cp "daily_국장_코스피200_스크리닝.tsv" "results/kospi_screening_${TODAY}_checked.tsv"
-          fi
+          cp "daily_국장_코스피200_스크리닝_raw.tsv" "results/kospi_screening_${TODAY}_checked.tsv"
+          cp "daily_국장_코스닥150_스크리닝_raw.tsv" "results/kosdaq_screening_${TODAY}_checked.tsv"
 
-          if [ -f "daily_국장_코스닥150_스크리닝_raw.tsv" ]; then
-            cp "daily_국장_코스닥150_스크리닝_raw.tsv" "results/kosdaq_screening_${TODAY}_checked.tsv"
-          else
-            cp "daily_국장_코스닥150_스크리닝.tsv" "results/kosdaq_screening_${TODAY}_checked.tsv"
-          fi
-
+          python validate_results.py
           python process_screening.py
 
       - name: Commit updated results
