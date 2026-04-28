@@ -3,16 +3,15 @@ name: Daily Stock Screening
 on:
   workflow_dispatch:
   schedule:
-    # 16:00 KST, weekdays = 07:00 UTC, Mon-Fri
+    # 16:00 KST = 07:00 UTC, Monday-Friday
     - cron: "0 7 * * 1-5"
 
 permissions:
   contents: write
 
 jobs:
-  screening:
+  screen:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -22,12 +21,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-          cache: "pip"
 
-      - name: Install dependencies
+      - name: Install screener dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-actions.txt
 
       - name: Run KOSPI 200 screener
         env:
@@ -54,10 +52,7 @@ jobs:
       - name: Prepare dashboard result files
         run: |
           mkdir -p results
-          TODAY=$(TZ=Asia/Seoul date +%Y%m%d)
-
-          rm -f results/kospi_screening_*_checked.tsv results/kospi_screening_*_sorted.tsv
-          rm -f results/kosdaq_screening_*_checked.tsv results/kosdaq_screening_*_sorted.tsv
+          TODAY=$(date +%Y%m%d)
 
           if [ -f "daily_국장_코스피200_스크리닝_raw.tsv" ]; then
             cp "daily_국장_코스피200_스크리닝_raw.tsv" "results/kospi_screening_${TODAY}_checked.tsv"
@@ -73,18 +68,13 @@ jobs:
 
           python process_screening.py
 
-      - name: Upload results as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: screening-results-${{ github.run_id }}
-          path: results/*.tsv
-          retention-days: 14
-
-      - name: Commit and push updated results
+      - name: Commit updated results
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
           git add results/*.tsv
+
           if git diff --cached --quiet; then
             echo "No result changes to commit."
           else
