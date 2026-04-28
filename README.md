@@ -1,393 +1,246 @@
-# 📈 피터린치 + 그레이엄 투자 스크리닝 자동화 시스템
+# 📈 피터린치 + 그레이엄 투자 스크리닝 대시보드
 
-> **매일 자동으로 KOSPI 200 & KOSDAQ 150의 유망주를 스크리닝하는 대시보드**
+> **KOSPI 200 & KOSDAQ 150을 피터 린치 + 벤저민 그레이엄 관점으로 매일 스크리닝하는 Streamlit 대시보드**
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Python](https://img.shields.io/badge/python-3.11+-blue)
+![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+## 🔗 대시보드
+
+> Streamlit 배포 후 아래 링크만 실제 앱 주소로 교체하세요.
+
+**Dashboard:** https://YOUR-APP-NAME.streamlit.app
+
+---
 
 ## ✨ 주요 특징
 
 ### 🤖 자동화
-- **GitHub Actions**: 매일 오전 6시, 정오 12시, 저녁 6시 자동 실행
-- **Zero Manual Work**: 한번 설정 후 매일 자동 갱신
-- **공개 저장소**: 무제한 실행 가능 ✅
+
+- **GitHub Actions**로 매일 1회 자동 실행
+- 권장 실행 시각: **평일 16:00 KST**
+- 한국 정규장 종료 후 약 30분 뒤에 실행되도록 설정합니다.
+- GitHub Actions의 cron은 **UTC 기준**이므로, 16:00 KST는 **07:00 UTC**입니다.
+- 자동 실행이 누락될 경우를 대비해 **수동 실행(workflow_dispatch)** 도 지원합니다.
 
 ### 📊 분석 엔진
-- **피터린치 스타일**: P/E 배수, 배당금, 영업이익 증가율
-- **그레이엄 스타일**: 내재가치, 괴리율, 안전마진
-- **하이브리드 정렬**: 두 가지 방식을 결합한 우선순위
 
-### 🎯 실시간 대시보드
-- **Streamlit 웹 대시보드**: 아름다운 UI로 언제든 확인
-- **탭 분리**: KOSPI / KOSDAQ 별도 분석
-- **동적 필터링**: 주당순현금, FCF, 단기부채, 하드웨어 필터
-- **기업 상세정보**: 클릭 후 재무 지표 한눈에 보기
+#### 피터 린치 방식
 
-### 📈 똑똑한 필터링
-```
-정렬 우선순위:
-1️⃣  Lynch P/E 배수 (낮을수록 좋음 ↑)
-2️⃣  배당감안점수 (높을수록 좋음 ↓)
-3️⃣  영업이익증가율 3년 (높을수록 좋음 ↓)
-4️⃣  그레이엄 괴리율 3년 (낮을수록 좋음 ↓)
+- 순현금, FCF, EPS 성장률을 함께 봅니다.
+- **Ex-Cash P/E** 기반으로 성장 대비 가격 매력을 평가합니다.
+- 주요 지표:
+  - **린치PER배수 = Ex-Cash PEG (Custom)**
+  - **배당감안점수 = Ex-Cash PEGY Score (Custom)**
+- 단기위험부채는 한국 공시 계정에 맞춰 다음 항목을 단기성 위험부채 후보로 봅니다.
+  - 단기차입금
+  - 유동차입금
+  - 기업어음
+  - 상업어음
+  - 전자단기사채
 
-필터링 로직:
-⚠️  주당순현금 < 0: 비고에 표시
-⚠️  FCF < 0: 비고에 표시
-🔍  단기부채: 별도 필터 (종합판정 제외)
-🏭 하드웨어: 종합판정에 포함
-```
+#### 벤저민 그레이엄 방식
 
----
+- EPS와 성장률로 **적정PER, 내재가치, 괴리율**을 계산합니다.
+- **그레이엄 괴리율이 높고 양수일수록** 현재가 대비 저평가 가능성이 큰 것으로 해석합니다.
+- 기본 비교 기준은 **3년 CAGR**이며, 대시보드에서 **1년 / 3년 / 5년 / 자동** 기준을 바꿔볼 수 있습니다.
 
-## 🚀 5분 안에 시작하기
+### 🎯 대시보드 기능
 
-### 1단계: 저장소 클론
-
-```bash
-git clone https://github.com/당신의계정/stock-screening.git
-cd stock-screening
-```
-
-### 2단계: GitHub Secrets 설정
-
-1. GitHub 저장소 → **Settings** → **Secrets and variables** → **Actions**
-2. **"New repository secret"** 클릭
-3. 다음 정보 입력:
-
-```
-Name:  DART_API_KEY
-Value: 당신의_DART_API_키
-```
-
-> **DART API 키 얻기:** https://opendart.fss.or.kr/ → 회원가입 → API 신청
-
-### 3단계: GitHub Actions 활성화
-
-1. 저장소 → **Actions** 탭
-2. "I understand my workflows, go ahead and enable them" 클릭
-3. ✅ 완료!
-
-### 4단계: Streamlit 대시보드 배포
-
-**로컬 테스트:**
-```bash
-pip install -r requirements.txt
-streamlit run dashboard.py
-```
-
-**클라우드 배포:**
-1. https://streamlit.io/ → 계정 생성
-2. GitHub와 연동
-3. "New app" → repository 선택 → `dashboard.py` 배포
-4. 완료! 🎉
+- KOSPI / KOSDAQ 시장 선택
+- 판정 필터
+  - 종합판정 (with filter)
+  - 린치PER판정* (Ex-Cash PEG)
+  - 배당감안판정* (Ex-Cash PEGY)
+- 비교 기준 선택
+  - EPS 성장률 기준: 1년 / 3년 / 5년 / 자동
+  - 그레이엄 괴리율 기준: 1년 / 3년 / 5년 / 자동
+- 정렬 우선 방식 선택
+- 예외 필터
+  - 주당순현금 > 0
+  - 주당잉여현금흐름 > 0
+  - 단기위험부채 없음
+- 테이블에서 종목을 선택하면 상세 재무지표, 원천값, 공시/리포트 링크 확인
 
 ---
 
 ## 📅 자동 실행 스케줄
 
-| 시간 | 타임존 | 용도 |
-|------|--------|------|
-| **오전 6시** | KST (UTC+9) | 아침 장 전 스크리닝 |
-| **정오 12시** | KST (UTC+9) | 점심시간 중간 체크 |
-| **저녁 6시** | KST (UTC+9) | 저녁 장 마감 후 정리 |
+| 실행 | 시간 | 비고 |
+|---|---:|---|
+| 자동 스크리닝 | **평일 16:00 KST** | 정규장 종료 후 약 30분 뒤 |
+| GitHub Actions cron | **07:00 UTC** | `.github/workflows/screening.yml` 기준 |
+| 수동 실행 | 필요 시 | GitHub Actions 화면에서 `Run workflow` 클릭 |
 
-> 💡 **팁**: 시간을 변경하려면 `.github/workflows/screening.yml` 수정
+> GitHub Actions 스케줄은 정확한 실행 시각을 항상 보장하지 않을 수 있습니다. 그래서 이 프로젝트는 자동 실행과 함께 수동 실행도 같이 지원합니다.
 
 ---
 
 ## 📂 파일 구조
 
-```
+```text
 repository/
 ├── .github/workflows/
-│   └── screening.yml                          # GitHub Actions 워크플로우
+│   └── screening.yml
 │
-├── kr_lynch_screener_one_shot_powerfix_...py  # 피터린치+그레이엄 스크리너
-├── add_pykrx_timing_checks_bookstyle_...py    # 타이밍 체크 (Ma30, 저항선, 거래량)
-├── process_screening.py                       # 정렬/필터링 처리
-├── dashboard.py                               # Streamlit 대시보드
+├── dashboard.py
+├── process_screening.py
+├── requirements.txt
 │
-├── kospi_codes_manual.txt                     # KOSPI 200 종목 코드
-├── kosdaq_codes_manual.txt                    # KOSDAQ 150 종목 코드
+├── kr_lynch_screener_one_shot_powerfix_rulefit_mirae_capadj_lynch333_v3_graham_fixed3_narrowdebt.py
 │
-├── results/                                   # 스크리닝 결과 저장
-│   ├── kospi_screening_20240427_120000.tsv
-│   └── kosdaq_screening_20240427_120000.tsv
+├── kospi_codes_manual_fixed_v2.txt
+├── kosdaq_codes_manual_fixed_v2.txt
 │
-├── requirements.txt                           # Python 의존성
-├── SETUP_GUIDE.md                             # 상세 설정 가이드
-└── README.md                                  # 이 파일
+├── results/
+│   ├── kospi_screening_YYYYMMDD_checked.tsv
+│   ├── kospi_screening_YYYYMMDD_sorted.tsv
+│   ├── kosdaq_screening_YYYYMMDD_checked.tsv
+│   └── kosdaq_screening_YYYYMMDD_sorted.tsv
+│
+└── README.md
+```
+
+> `add_pykrx_timing_checks_...py`는 타이밍 체크를 다시 붙일 때 사용할 수 있지만, 현재 대시보드 기본 흐름에서는 사용하지 않습니다.
+
+---
+
+## 🚀 로컬 실행
+
+```bash
+pip install -r requirements.txt
+streamlit run dashboard.py
 ```
 
 ---
 
-## 🎯 사용 방법
+## 🔐 GitHub Actions 설정
 
-### 기본 사용법
+### 1. DART API Key 등록
 
-1. **대시보드 열기**: https://[username]-screening.streamlit.app
-2. **시장 선택**: KOSPI 또는 KOSDAQ
-3. **필터 적용**: 원하는 조건으로 필터링
-4. **기업 클릭**: 상세 재무 정보 보기
+GitHub 저장소에서:
 
-### 필터링 옵션
-
-#### 주당순현금 필터
-```
-- 양수: 건강한 현금 흐름
-- 음수: 위험한 신호 ⚠️
-기본값: 0원 이상
+```text
+Settings → Secrets and variables → Actions → New repository secret
 ```
 
-#### FCF (자유현금흐름) 필터
-```
-- 양수: 순이익 + 감가상각 - 투자 > 0
-- 음수: 현금 흐름 악화 ⚠️
-기본값: 0억원 이상
+다음 이름으로 저장합니다.
+
+```text
+DART_API_KEY
 ```
 
-#### 단기부채 필터
-```
-- 높음: 단기 유동성 위험
-- 낮음: 안정적
-기본값: 제한 없음
+### 2. 수동 테스트
+
+GitHub 저장소에서:
+
+```text
+Actions → Daily Stock Screening → Run workflow
 ```
 
-#### 하드웨어 필터
-```
-- Y: 하드웨어 관련 기업
-- N: 소프트웨어/서비스
-- 전체: 상관없음
-```
+성공하면 `results/` 폴더에 최신 TSV가 커밋됩니다.
 
 ---
 
-## 🔍 스크리닝 로직
+## 🔍 계산 로직 요약
 
-### 1단계: 피터린치 + 그레이엄 평가
+### 피터 린치 지표
 
-```
-입력 데이터:
-├─ OpenDART (재무제표)
-│  └─ 매출, 영업이익, 순이익
-├─ Yahoo Finance (주가)
-│  └─ 현재가
-└─ 배당금
-   └─ 연간 배당금
+- **Net Cash per Share**: 현금성자산에서 장기부채를 차감한 뒤 발행주식 수로 나눈 값
+- **Ex-Cash P/E**: 현재가에서 주당순현금을 차감한 뒤 EPS로 나눈 값
+- **Ex-Cash PEG (Custom)**: Ex-Cash P/E를 선택 EPS 성장률로 나눈 값
+- **Ex-Cash PEGY Score (Custom)**: EPS 성장률과 배당수익률을 함께 반영한 가격 매력 점수
 
-계산:
-├─ Lynch P/E = 현재가 / EPS
-├─ 배당감안점수 = 배당수익률 + 성장률
-├─ 영업이익증가율(3년) = (현재 - 3년전) / 3년전
-└─ Graham 괴리율 = 시가 / 내재가치
-```
+판정 기준:
 
-### 2단계: 타이밍 체크 (pykrx)
+```text
+Ex-Cash PEG <= 0.5  → 매우 유망
+Ex-Cash PEG <  1.0  → 헐값
+Ex-Cash PEG <  2.0  → 보통
+Ex-Cash PEG >= 2.0  → 매우 불리
 
-```
-시장상승세 확인 (KOSPI/KOSDAQ)
-├─ 시장 MA30 상향식 (주간)
-└─ 주간 고점 경신
-
-섹터상승세 확인 (동일 그룹 바스켓)
-├─ 그룹 내 평균 MA30 상향식
-└─ 그룹 내 평균 고점 경신
-
-종목 타이밍 확인
-├─ MA30 위 거래 ✅
-├─ MA30 우상향 ✅
-├─ 저항선 돌파 (최근 스윙 고점)
-├─ 거래량 급증 ✅
-└─ 늦은 진입 아님 ✅
+Ex-Cash PEGY Score >= 2.0 → 강한 편
+Ex-Cash PEGY Score >= 1.5 → 양호
+Ex-Cash PEGY Score <  1.0 → 불리
 ```
 
-### 3단계: 정렬 & 필터링
+### 그레이엄 지표
 
-```
-정렬:
-1. Lynch P/E ↑
-2. 배당감안점수 ↓
-3. 영업이익증가율 ↓
-4. Graham 괴리율 ↓
-
-필터링:
-⚠️  주당순현금 < 0 → 비고
-⚠️  FCF < 0 → 비고
-🔍  단기부채 → 별도 필터
-🏭 하드웨어 → 포함/제외
-```
+- EPS와 성장률로 적정PER을 계산합니다.
+- 적정PER과 EPS를 이용해 내재가치를 추정합니다.
+- 현재가 대비 내재가치의 괴리율을 계산합니다.
+- 괴리율이 높고 양수일수록 저평가 가능성이 큰 것으로 봅니다.
 
 ---
 
-## 📊 출력 데이터 형식
+## 📊 기본 정렬
 
-### TSV 구조
+기본 정렬은 다음 순서를 따릅니다.
 
-```
-종목코드 | 종목명 | 그룹 | Lynch P/E | 배당감안점수 | 영업이익증가율(3년) | Graham괴리율(3년) | ... | 비고
-─────────────────────────────────────────────────────────────────────────────────────────────────
-005930 | 삼성전자 | 반도체 | 8.5 | 75 | 12.3 | 0.85 | ... | 
-000660 | SK하이닉스 | 반도체 | 9.2 | 68 | 8.5 | 0.92 | ... | 주당순현금⚠️
+```text
+1. 린치PER배수 낮은순
+2. 배당감안점수 높은순
+3. 선택 EPS 성장률 높은순
+4. 선택 그레이엄 괴리율 높은순
 ```
 
-### 비고 필드 의미
-
-```
-⚠️  주당순현금⚠️   → 주당순현금이 음수 (위험)
-⚠️  FCF⚠️          → 자유현금흐름이 음수
-✅  깨끗함           → 특별한 주의사항 없음
-🔍  [타이밍]        → MA30/저항선/거래량 분석 결과
-```
+대시보드에서 정렬 우선 방식을 바꿔 탐색할 수 있습니다.
 
 ---
 
-## 🛠️ 커스터마이징
+## 🧾 리포트 / 공시 링크
 
-### 1. 종목 추가/제거
+종목 상세에서 다음 링크를 제공합니다.
 
-**kospi_codes_manual.txt:**
-```
-005930  # 삼성전자
-000660  # SK하이닉스
-...
-```
+- DART 공시
+- FnGuide Snapshot
+- FnGuide Consensus
+- 한경컨센서스
+- 네이버 종목
+- 네이버 리서치 목록
+- Google PDF 리포트 검색
+- KRX KIND 보고서 검색
 
-### 2. 실행 시간 변경
+---
 
-**.github/workflows/screening.yml:**
-```yaml
-schedule:
-  - cron: '0 6 * * *'   # 오전 6시
-  - cron: '0 12 * * *'  # 정오
-  - cron: '0 18 * * *'  # 저녁
-```
+## ⚠️ 해석상 주의
 
-Cron 도움: https://crontab.guru/
-
-### 3. 필터 로직 수정
-
-**process_screening.py:**
-```python
-# 예: FCF 음수 필터 추가
-if fcf < 0:
-    flags.append('FCF⚠️')
-```
+- 이 도구는 투자 조언이 아니라 **스크리닝 보조 도구**입니다.
+- 금융, 보험, 증권 업종은 일반 제조업과 재무구조가 다르므로 순현금, FCF, 부채 지표를 그대로 비교하면 왜곡될 수 있습니다.
+- 통신, 유틸리티, 전력, 에너지, 철강, 화학, 조선 등 자본집약 업종은 대규모 CAPEX와 부채 조달이 일반적이므로 FCF와 순현금 지표를 업종 특성과 함께 봐야 합니다.
+- 단기위험부채는 린치 관점에서 별도 확인 대상으로 둡니다.
+- 모든 투자 결정은 본인의 추가 분석과 책임하에 진행해야 합니다.
 
 ---
 
 ## 🐛 문제 해결
 
-### GitHub Actions 실패
+### GitHub Actions가 자동 실행되지 않을 때
 
-**확인 사항:**
-1. ✅ DART API 키가 맞나?
-2. ✅ 종목 코드가 유효한가?
-3. ✅ 네트워크 연결이 되나?
+- `Actions` 탭에서 workflow가 활성화되어 있는지 확인
+- `DART_API_KEY` Secret이 등록되어 있는지 확인
+- 필요하면 `Run workflow`로 수동 실행
 
-**로그 보기:**
-- Actions 탭 → 워크플로우 → 상세 로그
-
-### Streamlit 데이터 안 보임
+### Streamlit에서 데이터가 안 보일 때
 
 ```bash
-# 캐시 삭제 후 재실행
-rm -rf ~/.streamlit/cache
+streamlit cache clear
 streamlit run dashboard.py
 ```
 
-### pykrx 오류
+### 결과 파일이 없는 경우
 
-```bash
-# 최신 버전으로 업그레이드
-pip install --upgrade pykrx
+`results/` 폴더에 다음 패턴의 파일이 있는지 확인합니다.
+
+```text
+kospi_screening_*_sorted.tsv
+kosdaq_screening_*_sorted.tsv
 ```
-
----
-
-## 📈 성능 최적화
-
-### API 호출 최소화
-- ✅ 캐싱 (24시간)
-- ✅ 배치 처리
-- ✅ Rate limiting
-
-### 대시보드 속도
-- ✅ Streamlit 캐싱
-- ✅ 청크 로딩
-- ✅ 인덱스 최적화
-
----
-
-## 📚 학습 자료
-
-### 피터린치 (Peter Lynch)
-- 📖 "Beating the Street" (주식에서 이기는 방법)
-- 📖 "One Up on Wall Street"
-- 🎯 핵심: 저 P/E + 배당금 + 성장성
-
-### 벤자민 그레이엄 (Benjamin Graham)
-- 📖 "The Intelligent Investor"
-- 📖 "Security Analysis"
-- 🎯 핵심: 내재가치 < 시가 + 안전마진
-
-### 기술 자료
-- 🔗 [GitHub Actions Docs](https://docs.github.com/en/actions)
-- 🔗 [Streamlit Docs](https://docs.streamlit.io)
-- 🔗 [DART API](https://opendart.fss.or.kr/)
-- 🔗 [pykrx](https://github.com/sharebook-kr/pykrx)
 
 ---
 
 ## ⚖️ 면책 조항
 
-> 📢 **이 도구는 정보 제공 목적입니다.**
->
-> - 투자 조언이 아닙니다
-> - 과거 성과는 미래를 보장하지 않습니다
-> - 항상 본인의 분석과 판단으로 투자 결정하세요
-> - 손실 위험이 있습니다
-> - 전문가 상담을 권장합니다
-
----
-
-## 📞 지원
-
-문제나 제안이 있으시면:
-
-1. **GitHub Issues 열기**
-2. **에러 메시지 포함**
-3. **재현 방법 설명**
-
----
-
-## 📜 라이선스
-
-MIT License - 자유롭게 사용하세요! 🎉
-
----
-
-## 🙏 감사의 말
-
-- **DART**: 한국 기업 재무 데이터
-- **Yahoo Finance**: 국제 주가 데이터
-- **pykrx**: 한국 주식 시장 데이터
-- **Streamlit**: 아름다운 대시보드 플랫폼
-
----
-
-**Happy Investing! 📈**
-
-```
- ____  _             _    _____           _____
-|  _ \| |           | |  |  ___|         |  ___|
-| |_) | | ___   ___ | |  | |___ ___  ___| |___ ___
-|  _ <| |/ _ \ / _ \| |  |  ___|/ __|/ _ \  ___|/ _ \
-| |_) | | (_) | (_) | |  | |___| (__| (_) | |___| (_) |
-|____/|_|\___/ \___/|_|  |_____|\___|\___|_____|\___|
-
-+ Graham Value Screening = 🚀
-```
-
-**Start investing smarter today!** 🎯
+> 이 대시보드는 정보 제공 및 학습 목적의 도구입니다.  
+> 투자 조언이 아니며, 투자 손익에 대한 책임은 투자자 본인에게 있습니다.
