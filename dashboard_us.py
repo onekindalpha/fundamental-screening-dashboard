@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""US Peter Lynch + Graham Dashboard v13 - auxiliary trend indicators"""
+"""US Peter Lynch + Graham Dashboard v11 - compact industry column and detail-only descriptions"""
 
 from __future__ import annotations
 
@@ -39,16 +39,14 @@ hr { margin-top: 0.6rem; margin-bottom: 0.8rem; }
 )
 
 UNIVERSE_FILES = {
-    # 각 universe는 여러 파일명 변형을 허용한다.
-    # 이전 버전에서 파일명이 조금만 달라도 "결과 파일 없음"으로 뜨던 문제를 막기 위함.
-    "Dow 30": ["results_us/dow30_screening_*.tsv", "results_us/*dow*30*.tsv"],
-    "Nasdaq 100": ["results_us/nasdaq100_screening_*.tsv", "results_us/*nasdaq*100*.tsv"],
-    "S&P 500": ["results_us/sp500_screening_*.tsv", "results_us/*sp500_screening*.tsv"],
-    "Company Add-ons": ["results_us/company_addons_screening_*.tsv", "results_us/*company*addons*.tsv", "results_us/*add*ons*.tsv"],
-    "S&P 500 Growth": ["results_us/sp500_growth_screening_*.tsv", "results_us/*sp500*growth*.tsv", "results_us/*s*p*500*growth*.tsv"],
-    "Russell 1000 Growth": ["results_us/russell1000_growth_screening_*.tsv", "results_us/*russell*1000*growth*.tsv", "results_us/*russell*growth*.tsv"],
-    "Dividend Aristocrats": ["results_us/dividend_aristocrats_screening_*.tsv", "results_us/*dividend*aristocrat*.tsv"],
-    "Dividend Kings": ["results_us/dividend_kings_screening_*.tsv", "results_us/*dividend*king*.tsv"],
+    "Dow 30": "results_us/dow30_screening_*.tsv",
+    "Nasdaq 100": "results_us/nasdaq100_screening_*.tsv",
+    "S&P 500": "results_us/sp500_screening_*.tsv",
+    "Company Add-ons": "results_us/company_addons_screening_*.tsv",
+    "S&P 500 Growth": "results_us/sp500_growth_screening_*.tsv",
+    "Russell 1000 Growth": "results_us/russell1000_growth_screening_*.tsv",
+    "Dividend Aristocrats": "results_us/dividend_aristocrats_screening_*.tsv",
+    "Dividend Kings": "results_us/dividend_kings_screening_*.tsv",
 }
 
 UNIVERSE_ORDER = [
@@ -91,10 +89,6 @@ BASE_DISPLAY_COLS = [
     "배당감안점수*",
     "EPS Growth (%)",
     "Graham Gap (%)",
-    "추세판정(보조)",
-    "6M수익률(보조,%)",
-    "52주고점대비(보조,%)",
-    "200일선상회(보조)",
     "현재가",
     "주당순현금(린치식)",
     "주당잉여현금흐름",
@@ -163,20 +157,9 @@ def fmt_num(v, decimals=2):
         return "-"
 
 
-def latest_file(patterns) -> str | None:
-    """Return newest TSV for a pattern or list of patterns."""
-    if isinstance(patterns, (str, Path)):
-        patterns = [str(patterns)]
-    files: list[str] = []
-    for pattern in patterns:
-        files.extend(glob.glob(str(pattern)))
-    # 중복 패턴에 같은 파일이 여러 번 잡히는 것을 제거
-    files = sorted(set(files), key=lambda p: Path(p).stat().st_mtime, reverse=True)
+def latest_file(pattern: str) -> str | None:
+    files = sorted(glob.glob(pattern), key=lambda p: Path(p).stat().st_mtime, reverse=True)
     return files[0] if files else None
-
-
-def available_result_files() -> list[str]:
-    return sorted([str(p) for p in Path("results_us").glob("*.tsv")])
 
 
 @st.cache_data(show_spinner=False)
@@ -220,8 +203,8 @@ def load_universe(name: str) -> tuple[pd.DataFrame | None, str | None]:
     if name == "Growth Leaders":
         frames = []
         sources = []
-        for label, patterns in UNIVERSE_FILES.items():
-            p = latest_file(patterns)
+        for label, pattern in UNIVERSE_FILES.items():
+            p = latest_file(pattern)
             if p:
                 d = load_tsv(p).copy()
                 if "유니버스" not in d.columns:
@@ -235,36 +218,10 @@ def load_universe(name: str) -> tuple[pd.DataFrame | None, str | None]:
             df = df.drop_duplicates("티커", keep="first")
         return attach_profiles(df), " + ".join(sources)
 
-    # 1) 우선 해당 universe 전용 파일을 찾는다.
     p = latest_file(UNIVERSE_FILES[name])
-    if p:
-        d = load_tsv(p).copy()
-        if "유니버스" not in d.columns:
-            d["유니버스"] = name
-        return attach_profiles(d), p
-
-    # 2) 파일명이 조금 달라졌거나 합산 결과 파일만 있는 경우를 대비해
-    #    results_us/*.tsv 전체에서 유니버스 컬럼이 해당 이름인 행을 복구한다.
-    frames = []
-    sources = []
-    for fp in available_result_files():
-        try:
-            d = load_tsv(fp).copy()
-        except Exception:
-            continue
-        if "유니버스" not in d.columns:
-            continue
-        mask = d["유니버스"].astype(str).str.strip().eq(name)
-        if mask.any():
-            frames.append(d[mask].copy())
-            sources.append(Path(fp).name)
-    if frames:
-        df = pd.concat(frames, ignore_index=True)
-        if "티커" in df.columns:
-            df = df.drop_duplicates("티커", keep="first")
-        return attach_profiles(df), " + ".join(sources)
-
-    return None, None
+    if not p:
+        return None, None
+    return attach_profiles(load_tsv(p)), p
 
 
 def add_compare_columns(df: pd.DataFrame, eps_basis: str, graham_basis: str) -> pd.DataFrame:
@@ -330,18 +287,14 @@ def unique_options(df: pd.DataFrame, col: str) -> list[str]:
 def latest_update_time(universe: str, source: str | None) -> str:
     paths = []
     if universe == "Growth Leaders":
-        for patterns in UNIVERSE_FILES.values():
-            p = latest_file(patterns)
+        for pattern in UNIVERSE_FILES.values():
+            p = latest_file(pattern)
             if p:
                 paths.append(Path(p))
     elif source:
         src = str(source).split(" + ")[0]
         if src and Path(src).exists():
             paths.append(Path(src))
-        elif src:
-            p = Path("results_us") / Path(src).name
-            if p.exists():
-                paths.append(p)
 
     if not paths:
         return "-"
@@ -420,8 +373,6 @@ def format_display_values(d: pd.DataFrame) -> pd.DataFrame:
         "배당감안점수*",
         "EPS Growth (%)",
         "Graham Gap (%)",
-        "6M수익률(보조,%)",
-        "52주고점대비(보조,%)",
         "현재가",
         "주당순현금(린치식)",
         "주당잉여현금흐름",
@@ -454,13 +405,10 @@ def sort_df(df: pd.DataFrame, mode: str) -> pd.DataFrame:
 def make_display_df(df: pd.DataFrame) -> pd.DataFrame:
     d = df.reset_index(drop=True).copy()
     # 표에서는 국장 대시보드의 "그룹/업종"처럼 한 칸만 보여준다.
-    # 업종 = 산업(industry)이 있으면 산업, 없으면 섹터(sector).
-    # 둘 다 비어 있으면 표에서 업종 컬럼 자체를 제거한다. 사업설명은 상세에서만 표시한다.
+    # 사업설명은 표가 지저분해지므로 선택 종목 상세에서만 표시한다.
     industry = d["산업"].astype(str).str.strip() if "산업" in d.columns else pd.Series([""] * len(d), index=d.index)
     sector = d["섹터"].astype(str).str.strip() if "섹터" in d.columns else pd.Series([""] * len(d), index=d.index)
     d["업종"] = industry.where(industry.ne(""), sector)
-    if d["업종"].astype(str).str.strip().replace({"nan": "", "None": "", "-": ""}).eq("").all():
-        d = d.drop(columns=["업종"], errors="ignore")
     d.insert(0, "순위", range(1, len(d) + 1))
     d.insert(0, "상세", False)
     rename = {
@@ -557,19 +505,6 @@ def render_detail(row: pd.Series) -> None:
         unsafe_allow_html=True,
     )
 
-    st.markdown("#### 보조 추세 지표")
-    st.caption("아래 지표는 Lynch/Graham 판정에는 반영하지 않고, 차트 우상향 여부를 참고하기 위한 보조지표입니다.")
-    t1, t2, t3, t4, t5 = st.columns(5)
-    t1.metric("추세판정", str(row.get("추세판정(보조)", "-") or "-"))
-    t2.metric("3M 수익률", fmt_num(row.get("3M수익률(보조,%)")))
-    t3.metric("6M 수익률", fmt_num(row.get("6M수익률(보조,%)")))
-    t4.metric("12M 수익률", fmt_num(row.get("12M수익률(보조,%)")))
-    t5.metric("52주 고점 대비", fmt_num(row.get("52주고점대비(보조,%)")))
-    t6, t7, t8 = st.columns(3)
-    t6.metric("50일선 상회", str(row.get("50일선상회(보조)", "-") or "-"))
-    t7.metric("200일선 상회", str(row.get("200일선상회(보조)", "-") or "-"))
-    t8.metric("200일 이평", fmt_num(row.get("200일이평(보조)")))
-
     render_us_interpretation_notes(compact=False)
 
     col_a, col_b = st.columns(2)
@@ -612,8 +547,6 @@ def render_detail(row: pd.Series) -> None:
     cols = [
         "섹터", "산업", "국가", "웹사이트", "사업설명",
         "현재가", "EPS(FY)", "EPS기준연도", "배당수익률(%)",
-        "추세판정(보조)", "3M수익률(보조,%)", "6M수익률(보조,%)", "12M수익률(보조,%)",
-        "52주고점대비(보조,%)", "50일이평(보조)", "200일이평(보조)", "50일선상회(보조)", "200일선상회(보조)",
         "현금및현금성자산", "유가증권성자산", "현금성자산합계", "장기부채", "단기위험부채",
         "주주지분", "총부채", "주당순현금(린치식)", "주당순현금(보수형)",
         "순현금차감PER(린치식)", "순현금차감PER(보수형)",
@@ -680,16 +613,11 @@ Ex-Cash PEGY ≥ 2.0 = 안심
 
     df, source = load_universe(universe)
     if df is None or len(df) == 0:
-        st.warning("선택한 Universe의 결과 파일을 찾지 못했습니다. results_us 안의 파일명도 함께 확인합니다.")
-        files = available_result_files()
-        if files:
-            st.caption("현재 감지된 results_us TSV 파일")
-            st.code("\n".join(Path(x).name for x in files), language="text")
-        else:
-            st.code(
-                "python -u us_lynch_graham_screener.py --universe dow30_tickers.txt --universe-name 'Dow 30' --out results_us/dow30_screening_$(date +%Y%m%d).tsv",
-                language="bash",
-            )
+        st.warning("아직 결과 파일이 없습니다. 먼저 us_lynch_graham_screener.py를 실행해 results_us/*.tsv를 생성하세요.")
+        st.code(
+            "python -u us_lynch_graham_screener.py --universe dow30_tickers.txt --universe-name 'Dow 30' --out results_us/dow30_screening_$(date +%Y%m%d).tsv",
+            language="bash",
+        )
         return
 
     raw_total_count = len(df)

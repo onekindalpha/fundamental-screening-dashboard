@@ -1,0 +1,112 @@
+name: US Daily Stock Screening
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "dow30"
+        type: choice
+        options:
+          - smoke
+          - dow30
+          - nasdaq100
+          - sp500
+          - addons
+          - full
+  schedule:
+    # US regular market closes at 16:00 ET. This schedule uses 22:00 UTC as a conservative post-close run.
+    # If you want exact ET handling around daylight saving time, use manual run or split seasonal cron schedules.
+    - cron: "0 22 * * 1-5"
+
+permissions:
+  contents: write
+
+jobs:
+  screen-us:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_us.txt
+
+      - name: Prepare results folder
+        run: |
+          mkdir -p results_us
+          rm -f results_us/*.tsv
+
+      - name: Smoke test Dow 30 sample
+        if: ${{ github.event.inputs.mode == 'smoke' }}
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          python -u us_lynch_graham_screener.py \
+            --universe dow30_tickers.txt \
+            --universe-name "Dow 30 Smoke" \
+            --limit 5 \
+            --out "results_us/smoke_dow30_screening_$(date +%Y%m%d).tsv"
+
+      - name: Run Dow 30
+        if: ${{ github.event.inputs.mode == 'dow30' || github.event.inputs.mode == 'full' || github.event_name == 'schedule' }}
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          python -u us_lynch_graham_screener.py \
+            --universe dow30_tickers.txt \
+            --universe-name "Dow 30" \
+            --out "results_us/dow30_screening_$(date +%Y%m%d).tsv"
+
+      - name: Run Nasdaq 100
+        if: ${{ github.event.inputs.mode == 'nasdaq100' || github.event.inputs.mode == 'full' || github.event_name == 'schedule' }}
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          python -u us_lynch_graham_screener.py \
+            --universe nasdaq100_tickers.txt \
+            --universe-name "Nasdaq 100" \
+            --out "results_us/nasdaq100_screening_$(date +%Y%m%d).tsv"
+
+      - name: Run S&P 500
+        if: ${{ github.event.inputs.mode == 'sp500' || github.event.inputs.mode == 'full' || github.event_name == 'schedule' }}
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          python -u us_lynch_graham_screener.py \
+            --universe sp500_tickers.txt \
+            --universe-name "S&P 500" \
+            --out "results_us/sp500_screening_$(date +%Y%m%d).tsv"
+
+      - name: Run Company Add-ons
+        if: ${{ github.event.inputs.mode == 'addons' || github.event.inputs.mode == 'full' || github.event_name == 'schedule' }}
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          python -u us_lynch_graham_screener.py \
+            --universe us_company_addons_tickers.txt \
+            --universe-name "Company Add-ons" \
+            --out "results_us/company_addons_screening_$(date +%Y%m%d).tsv"
+
+      - name: Commit updated US results
+        if: ${{ github.event.inputs.mode != 'smoke' }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add results_us/*.tsv
+          if git diff --cached --quiet; then
+            echo "No US result changes to commit."
+          else
+            git commit -m "Update US screening results"
+            git push
+          fi
