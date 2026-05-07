@@ -10,10 +10,9 @@
 
 ## 🔗 대시보드
 
-| 구분 | 링크 |
-|---|---|
-| 🇰🇷 국장 대시보드 | https://peter-lynch-benjamin-graham-zw4fltw28rwfvafz8nvy67.streamlit.app |
-| 🇺🇸 미장 대시보드 | https://peter-lynch-benjamin-graham-md9wco596y8u5ctzoartms.streamlit.app |
+- 🇰🇷 **국장 대시보드:** https://peter-lynch-benjamin-graham-zw4fltw28rwfvafz8nvy67.streamlit.app
+- 🇺🇸 **미장 대시보드:** https://peter-lynch-benjamin-graham-md9wco596y8u5ctzoartms.streamlit.app/
+- 🌏 **글로벌/아시아 대시보드:** https://peter-lynch-benjamin-graham-gcadlutit8xihbjyjttdk3.streamlit.app/
 
 ---
 

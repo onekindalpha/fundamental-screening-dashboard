@@ -1,0 +1,45 @@
+name: Global Asia Stock Screening
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 21 * * 1-5"
+      timezone: "Asia/Seoul"
+
+permissions:
+  contents: write
+
+jobs:
+  screen-global:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements_global.txt
+
+      - name: Build global universe files
+        run: |
+          python -u build_global_universe_files.py
+
+      - name: Run global screening
+        run: |
+          chmod +x run_global_universes.sh
+          ./run_global_universes.sh
+
+      - name: Commit updated global results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add results_global
+          git diff --cached --quiet && echo "No global result changes" || git commit -m "Update global Asia screening results"
+          git push
