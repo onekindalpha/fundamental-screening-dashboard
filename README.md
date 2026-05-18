@@ -1,6 +1,10 @@
-# 📈 피터린치 + 그레이엄 투자 스크리닝 대시보드
+# Fundamental Screening Dashboard
 
-> **한국/미국 주요 주식 universe를 피터 린치 + 벤저민 그레이엄 관점으로 자동 스크리닝하는 Streamlit 대시보드**
+Automated financial metrics screening dashboard for Korea, US, and global markets using Streamlit, data pipelines, and GitHub Actions.
+
+This project converts rule-based financial analysis concepts into reproducible software workflows: data collection, metric calculation, scheduled screening, result generation, and interactive dashboard visualization.
+
+The main focus is software engineering practice: building data pipelines, dashboard interfaces, automated update workflows, and reproducible screening outputs.
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
@@ -8,100 +12,142 @@
 
 ---
 
-## 🔗 대시보드
+## Live Dashboards
 
-- 🇰🇷 **국장 대시보드:** https://peter-lynch-benjamin-graham-zw4fltw28rwfvafz8nvy67.streamlit.app
-- 🇺🇸 **미장 대시보드:** https://peter-lynch-benjamin-graham-md9wco596y8u5ctzoartms.streamlit.app/
-- 🌏 **글로벌/아시아 대시보드:** https://peter-lynch-benjamin-graham-gcadlutit8xihbjyjttdk3.streamlit.app/
-
----
-
-## ✨ 주요 특징
-
-### 🇰🇷 국장 대시보드
-
-- 대상 universe
-  - KOSPI 200
-  - KOSDAQ 150
-- 데이터 흐름
-  - DART 재무 데이터
-  - pykrx / 가격 보정
-  - GitHub Actions 자동 실행
-- 주요 기능
-  - 피터 린치식 Ex-Cash PEG / Ex-Cash PEGY 판정
-  - 벤저민 그레이엄식 적정PER / 내재가치 / 괴리율
-  - EPS 성장률 기준 1년 / 3년 / 5년 / 자동 선택
-  - 그레이엄 괴리율 기준 1년 / 3년 / 5년 / 자동 선택
-  - 주당순현금, FCF, 단기위험부채 예외 필터
-  - DART / FnGuide / 한경컨센서스 / 네이버 / KRX KIND 링크
-
-### 🇺🇸 미장 대시보드
-
-- 대상 universe
-  - Dow 30
-  - Nasdaq 100
-  - S&P 500
-  - Company Add-ons
-  - S&P 500 Growth
-  - Russell 1000 Growth
-  - Dividend Aristocrats
-  - Dividend Kings
-  - Growth Leaders 자동 필터 탭
-- 주요 기능
-  - 국장과 동일한 Lynch + Graham 기본 구조
-  - Ex-Cash PEG / Ex-Cash PEGY 판정
-  - EPS Growth 1Y / 3Y / 5Y 비교
-  - FCF per Share / FCF Yield 확인
-  - Net Cash per Share 확인
-  - 보조 추세지표
-    - 3M / 6M / 12M 수익률
-    - 52주 고점 대비
-    - 50일선 / 200일선
-    - 추세판정(보조)
-  - 보조 추세지표는 Lynch/Graham 판정에 섞지 않고 참고용으로만 사용
+- **Korea Dashboard**: https://peter-lynch-benjamin-graham-zw4fltw28rwfvafz8nvy67.streamlit.app
+- **US Dashboard**: https://peter-lynch-benjamin-graham-md9wco596y8u5ctzoartms.streamlit.app/
+- **Global / Asia Dashboard**: https://peter-lynch-benjamin-graham-gcadlutit8xihbjyjttdk3.streamlit.app/
 
 ---
 
-## 📅 자동 실행 스케줄
+## TL;DR
 
-### 🇰🇷 국장
+- Built a Streamlit-based financial metrics dashboard covering Korea, US, and global market universes.
+- Implemented automated data pipelines using DART, pykrx, public market data, and scheduled GitHub Actions workflows.
+- Generated reproducible screening outputs as TSV files for multiple universes.
+- Designed dashboard views for company screening, valuation factor comparison, trend reference indicators, and filtering workflows.
+- Added separate Korea, US, and Global / Asia dashboard entrypoints for region-specific data handling.
 
-| 실행 | 시간 | 비고 |
+---
+
+## Project Overview
+
+This repository implements a rule-based financial metrics screening system with interactive dashboards and scheduled update workflows.
+
+The system includes:
+
+- Korea dashboard using DART financial data and pykrx-based market data
+- US dashboard covering multiple major universes such as Dow 30, Nasdaq 100, S&P 500, growth lists, and dividend-focused lists
+- Global / Asia dashboard for additional regional universes
+- GitHub Actions workflows for scheduled screening runs
+- TSV result files for reproducible screening outputs
+- Streamlit dashboards for interactive exploration and filtering
+
+This project is not positioned as an investment recommendation tool. It is designed as a data engineering and dashboard implementation project based on financial metrics and rule-based screening logic.
+
+---
+
+## Key Features
+
+### 1. Korea Dashboard
+
+Supported universe:
+
+- KOSPI 200
+- KOSDAQ 150
+
+Data flow:
+
+- DART financial data
+- pykrx-based market data
+- price adjustment workflow
+- scheduled GitHub Actions execution
+
+Main features:
+
+- Ex-Cash PEG / Ex-Cash PEGY-style factor calculation
+- Graham-style fair PER / intrinsic value / valuation gap estimation
+- EPS growth comparison across 1-year, 3-year, and 5-year windows
+- Net cash per share, FCF, and short-term risk debt filters
+- External reference links to DART, FnGuide, Hankyung Consensus, Naver, and KRX KIND
+
+### 2. US Dashboard
+
+Supported universe:
+
+- Dow 30
+- Nasdaq 100
+- S&P 500
+- Company add-ons
+- S&P 500 Growth
+- Russell 1000 Growth
+- Dividend Aristocrats
+- Dividend Kings
+- Growth Leaders tab generated from rule-based filters
+
+Main features:
+
+- Region-specific implementation of the same screening framework
+- Ex-Cash PEG / Ex-Cash PEGY-style factor calculation
+- EPS growth comparison across 1-year, 3-year, and 5-year windows
+- FCF per share and FCF yield
+- Net cash per share
+- Reference trend indicators:
+  - 3-month / 6-month / 12-month return
+  - distance from 52-week high
+  - 50-day / 200-day moving averages
+  - trend reference label
+
+Trend indicators are used only as reference fields and are not mixed into the main fundamental screening score.
+
+### 3. Global / Asia Dashboard
+
+The Global / Asia dashboard extends the screening interface to additional regional universes and dashboard views.
+
+It is designed to reuse the same screening concept while keeping region-specific data handling separated.
+
+---
+
+## Automation Schedule
+
+### Korea Workflow
+
+| Task | Schedule | Notes |
 |---|---:|---|
-| 자동 스크리닝 | **평일 16:00 KST** | 한국 정규장 종료 후 약 30분 뒤 |
-| GitHub Actions cron | **07:00 UTC** | `.github/workflows/screening.yml` 기준 |
-| 수동 실행 | 필요 시 | GitHub Actions 화면에서 `Run workflow` 클릭 |
+| Scheduled screening | Weekdays 16:00 KST | After the Korean regular market close |
+| GitHub Actions cron | 07:00 UTC | Based on `.github/workflows/screening.yml` |
+| Manual run | On demand | Run from the GitHub Actions page |
 
-### 🇺🇸 미장
+### US Workflow
 
-| 실행 | 시간 | 비고 |
+| Task | Schedule | Notes |
 |---|---:|---|
-| 자동 스크리닝 | **평일 17:30 America/New_York** | 미국 정규장 종료 후 실행 |
-| GitHub Actions workflow | `.github/workflows/screening_us.yml` | `mode: full` 기준 전체 universe 생성 |
-| 수동 실행 | 필요 시 | GitHub Actions 화면에서 `Run workflow` 클릭 |
+| Scheduled screening | Weekdays 17:30 America/New_York | After the US regular market close |
+| GitHub Actions workflow | `.github/workflows/screening_us.yml` | Runs full universe generation |
+| Manual run | On demand | Run from the GitHub Actions page with `mode: full` |
 
-> GitHub Actions scheduled workflow는 지연될 수 있으므로, 필요할 때는 `Run workflow`로 수동 갱신할 수 있습니다.
+GitHub Actions scheduled workflows may be delayed depending on GitHub's scheduler. Manual workflow execution is supported when an immediate refresh is needed.
 
 ---
 
-## 📂 파일 구조
+## Repository Structure
 
 ```text
 repository/
 ├── .github/workflows/
-│   ├── screening.yml              # 국장 자동 스크리닝
-│   └── screening_us.yml           # 미장 자동 스크리닝
+│   ├── screening.yml              # Korea scheduled screening
+│   └── screening_us.yml           # US scheduled screening
 │
-├── dashboard.py                   # 국장 Streamlit 대시보드
-├── dashboard_us.py                # 미장 Streamlit 대시보드
+├── dashboard.py                   # Korea Streamlit dashboard
+├── dashboard_us.py                # US Streamlit dashboard
 │
-├── process_screening.py           # 국장 결과 정렬/후처리
+├── process_screening.py           # Korea result sorting / post-processing
 ├── kr_lynch_screener_one_shot_powerfix_rulefit_mirae_capadj_lynch333_v3_graham_fixed3_narrowdebt.py
 ├── us_lynch_graham_screener.py
 │
-├── requirements.txt               # Streamlit 앱 기본 의존성
-├── requirements-actions.txt       # 국장 GitHub Actions용 의존성
-├── requirements_us.txt            # 미장 로컬/Actions용 의존성
+├── requirements.txt               # Base Streamlit app dependencies
+├── requirements-actions.txt       # Korea GitHub Actions dependencies
+├── requirements_us.txt            # US local / Actions dependencies
 │
 ├── kospi_codes_manual_fixed_v2.txt
 ├── kosdaq_codes_manual_fixed_v2.txt
@@ -136,16 +182,16 @@ repository/
 
 ---
 
-## 🚀 로컬 실행
+## Local Development
 
-### 국장 대시보드
+### Korea Dashboard
 
 ```bash
 pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
-### 미장 대시보드
+### US Dashboard
 
 ```bash
 pip install -r requirements.txt
@@ -155,36 +201,35 @@ streamlit run dashboard_us.py
 
 ---
 
-## 🔐 GitHub Actions 설정
+## GitHub Actions Setup
 
-### 국장
+### Korea Workflow
 
-국장 스크리너는 DART API Key가 필요합니다.
+The Korea workflow requires a DART API key.
 
-GitHub 저장소에서:
-
-```text
-Settings → Secrets and variables → Actions → New repository secret
-```
-
-다음 이름으로 저장합니다.
+Add the following repository secret:
 
 ```text
 DART_API_KEY
 ```
 
-수동 실행:
+GitHub path:
+
+```text
+Settings → Secrets and variables → Actions → New repository secret
+```
+
+Manual execution:
 
 ```text
 Actions → Daily Stock Screening → Run workflow
 ```
 
-### 미장
+### US Workflow
 
-미장 대시보드는 현재 기본적으로 공개 가격/재무 데이터 기반으로 동작합니다.  
-별도 secret 없이도 결과 파일을 생성할 수 있도록 구성합니다.
+The US dashboard is designed to generate result files using public market and financial data sources.
 
-수동 실행:
+Manual execution:
 
 ```text
 Actions → US Daily Stock Screening → Run workflow → mode: full
@@ -192,43 +237,55 @@ Actions → US Daily Stock Screening → Run workflow → mode: full
 
 ---
 
-## 🔍 계산 로직 요약
+## Screening Logic Summary
 
-### 피터 린치 지표
+### Financial Metrics
 
-- **Net Cash per Share**: 현금성자산에서 장기부채를 차감한 뒤 발행주식 수로 나눈 값
-- **FCF per Share**: 잉여현금흐름을 발행주식 수로 나눈 값
-- **FCF Yield**: 주당 FCF를 현재가로 나눈 값
-- **Ex-Cash P/E**: 현재가에서 주당순현금을 차감한 뒤 EPS로 나눈 값
-- **Ex-Cash PEG (Custom)**: Ex-Cash P/E를 선택 EPS 성장률로 나눈 값
-- **Ex-Cash PEGY Score (Custom)**: EPS 성장률과 배당수익률을 함께 반영한 가격 매력 점수
+The dashboard calculates and compares several financial metrics:
 
-판정 기준:
+- **Net Cash per Share**: cash-like assets minus long-term debt, divided by shares outstanding
+- **FCF per Share**: free cash flow divided by shares outstanding
+- **FCF Yield**: FCF per share divided by current price
+- **Ex-Cash P/E**: price adjusted by net cash per share, divided by EPS
+- **Ex-Cash PEG**: Ex-Cash P/E divided by selected EPS growth rate
+- **Ex-Cash PEGY Score**: a custom score combining growth and dividend yield
+
+### Rule-Based Interpretation
+
+The dashboard uses rule-based interpretation ranges for screening and comparison. These ranges are used for exploratory filtering and dashboard organization, not as investment recommendations.
+
+Example ranges:
 
 ```text
-Ex-Cash PEG <= 0.5  → 매우 유망
-Ex-Cash PEG <  1.0  → 헐값
-Ex-Cash PEG <  2.0  → 보통
-Ex-Cash PEG >= 2.0  → 매우 불리
+Ex-Cash PEG <= 0.5  → very attractive by the rule
+Ex-Cash PEG <  1.0  → attractive by the rule
+Ex-Cash PEG <  2.0  → neutral by the rule
+Ex-Cash PEG >= 2.0  → unfavorable by the rule
 
-Ex-Cash PEGY Score >= 2.0 → 안심
-Ex-Cash PEGY Score >= 1.5 → 양호
-Ex-Cash PEGY Score 1~1.5  → 보통
-Ex-Cash PEGY Score <  1.0 → 불리
+Ex-Cash PEGY Score >= 2.0 → strong by the rule
+Ex-Cash PEGY Score >= 1.5 → positive by the rule
+Ex-Cash PEGY Score 1~1.5  → neutral by the rule
+Ex-Cash PEGY Score <  1.0 → weak by the rule
 ```
 
-### 벤저민 그레이엄 지표
+### Intrinsic Value Reference
 
-- EPS와 성장률로 적정PER을 계산합니다.
-- 적정PER과 EPS를 이용해 내재가치를 추정합니다.
-- 현재가 대비 내재가치의 괴리율을 계산합니다.
-- 괴리율이 높고 양수일수록 저평가 가능성이 큰 것으로 봅니다.
+The dashboard also estimates a Graham-style intrinsic value reference using EPS and growth assumptions.
 
-### 미장 Growth Leaders
+The output includes:
 
-Growth Leaders는 별도 universe 파일이 아니라, 생성된 미장 universe 결과를 합친 뒤 조건으로 자동 선별하는 압축 탭입니다.
+- fair PER reference
+- intrinsic value reference
+- valuation gap versus current price
+- multiple growth-window comparisons
 
-기본 조건:
+These values are used as screening references and should be interpreted with sector, accounting quality, and data limitations in mind.
+
+### Growth Leaders Tab
+
+The Growth Leaders tab is generated from existing US universe outputs by applying rule-based filters.
+
+Base conditions:
 
 ```text
 EPS Growth 3Y >= 10%
@@ -237,7 +294,7 @@ Ex-Cash PEG < 1.0
 Ex-Cash PEGY Score >= 1.5
 ```
 
-엄격 조건:
+Strict conditions:
 
 ```text
 EPS Growth 3Y >= 15%
@@ -248,85 +305,83 @@ Ex-Cash PEGY Score >= 2.0
 
 ---
 
-## 📊 기본 정렬
+## Default Sorting
 
-기본 정렬은 다음 순서를 따릅니다.
-
-```text
-1. 린치PER배수 낮은순
-2. 배당감안점수 높은순
-3. 선택 EPS 성장률 높은순
-4. 선택 그레이엄 괴리율 높은순
-```
-
-대시보드에서 정렬 우선 방식을 바꿔 탐색할 수 있습니다.
-
----
-
-## 🧭 보조 추세지표
-
-미장 대시보드에는 보조 추세지표가 포함됩니다.
+The default sorting order is:
 
 ```text
-3M수익률(보조,%)
-6M수익률(보조,%)
-12M수익률(보조,%)
-52주고점대비(보조,%)
-50일이평(보조)
-200일이평(보조)
-50일선상회(보조)
-200일선상회(보조)
-추세판정(보조)
+1. Lower Lynch-style PER multiple
+2. Higher dividend-adjusted score
+3. Higher selected EPS growth rate
+4. Higher selected Graham-style valuation gap
 ```
 
-이 지표들은 Lynch/Graham 판정에는 반영하지 않습니다.  
-펀더멘털 유망 종목이 실제 시장 가격 흐름에서도 반응 중인지 확인하는 참고용입니다.
+The dashboard allows users to change sorting priorities for different exploration workflows.
 
 ---
 
-## ⚠️ 해석상 주의
+## Reference Trend Indicators
 
-- 이 도구는 투자 조언이 아니라 **스크리닝 보조 도구**입니다.
-- Ex-Cash PEG / Ex-Cash PEGY는 성장 대비 가격 매력을 보는 지표이지, 주가 우상향을 보장하는 모멘텀 신호가 아닙니다.
-- 금융, 보험, 증권 업종은 일반 제조업과 재무구조가 다르므로 순현금, FCF, 부채 지표를 그대로 비교하면 왜곡될 수 있습니다.
-- 통신, 유틸리티, 전력, 에너지, 철강, 화학, 조선 등 자본집약 업종은 대규모 CAPEX와 부채 조달이 일반적이므로 FCF와 순현금 지표를 업종 특성과 함께 봐야 합니다.
-- 미장 ADR/해외기업은 미국 기업과 공시/회계 태그가 달라 일부 지표가 결측일 수 있습니다.
-- 모든 투자 결정은 본인의 추가 분석과 책임하에 진행해야 합니다.
+The US dashboard includes additional trend reference fields:
+
+```text
+3M return reference (%)
+6M return reference (%)
+12M return reference (%)
+Distance from 52-week high (%)
+50-day moving average
+200-day moving average
+Above 50-day moving average
+Above 200-day moving average
+Trend reference label
+```
+
+These indicators are not included in the main Lynch/Graham-style screening decision logic. They are provided as reference fields to compare financial metric outputs with market price behavior.
 
 ---
 
-## 🐛 문제 해결
+## Limitations
 
-### GitHub Actions가 자동 실행되지 않을 때
+- Financial, insurance, and securities companies have different balance sheet structures, so cash, debt, and FCF-based metrics may not be directly comparable with manufacturing or software companies.
+- Capital-intensive sectors such as telecom, utilities, energy, steel, chemicals, shipbuilding, and infrastructure may require sector-specific interpretation.
+- ADRs and non-US companies may have incomplete or inconsistent accounting tags.
+- Public data sources may contain missing, delayed, or restated values.
+- Screening outputs should be treated as starting points for further analysis, not final conclusions.
 
-- `Actions` 탭에서 workflow가 활성화되어 있는지 확인
-- 국장 workflow의 경우 `DART_API_KEY` Secret이 등록되어 있는지 확인
-- 필요하면 `Run workflow`로 수동 실행
+---
 
-### Streamlit에서 데이터가 안 보일 때
+## Troubleshooting
+
+### GitHub Actions does not run automatically
+
+- Check whether workflows are enabled in the `Actions` tab.
+- For the Korea workflow, confirm that `DART_API_KEY` is registered as a repository secret.
+- Use `Run workflow` for manual execution if scheduled runs are delayed.
+
+### Streamlit does not show updated data
 
 ```bash
 streamlit cache clear
 streamlit run dashboard.py
 ```
 
-미장 대시보드:
+US dashboard:
 
 ```bash
 streamlit cache clear
 streamlit run dashboard_us.py
 ```
 
-### 결과 파일이 없는 경우
+### Result files are missing
 
-국장:
+Korea:
 
 ```text
 results/kospi_screening_*_sorted.tsv
 results/kosdaq_screening_*_sorted.tsv
 ```
 
-미장:
+US:
 
 ```text
 results_us/*_screening_*.tsv
@@ -334,7 +389,8 @@ results_us/*_screening_*.tsv
 
 ---
 
-## ⚖️ 면책 조항
+## Disclaimer
 
-> 이 대시보드는 정보 제공 및 학습 목적의 도구입니다.  
-> 투자 조언이 아니며, 투자 손익에 대한 책임은 투자자 본인에게 있습니다.
+This project is for educational, research, and software engineering portfolio purposes only.
+
+It is not financial advice, investment recommendation, or a trading signal service. All investment decisions are the responsibility of the user.
