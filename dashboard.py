@@ -26,7 +26,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="피터린치 + 그레이엄 대시보드",
+    page_title="피터린치 + 그레이엄 재무지표 대시보드",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -1059,7 +1059,7 @@ def dataframe_with_optional_selection(table: pd.DataFrame):
 
 
 def main():
-    st.markdown("# 📈 피터린치 + 그레이엄 투자 스크리닝 대시보드")
+    st.markdown("# 📈 피터린치 + 그레이엄 재무지표 스크리닝 대시보드")
     st.markdown(
         "<div class='small-muted'>기본 판정은 3년 기준을 중심으로 보고, 탐색용으로 1년·3년·5년·자동 기준을 바꿔 비교합니다.</div>",
         unsafe_allow_html=True,
