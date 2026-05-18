@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-피터린치 + 그레이엄 투자 스크리닝 대시보드
+Fundamental Screening Dashboard
 
-핵심 설계
-- 판정값(종합판정 / 린치PER판정 / 배당감안점수판정 / 하드필터통과)은 정렬 기준이 아니라 메인 테이블 위 필터 옵션으로 선택한다.
-- 기본 비교 기준은 3년이다.
-- 탐색용으로 EPS 성장률과 그레이엄 괴리율은 1년 / 3년 / 5년 / 자동 기준을 선택해 재정렬할 수 있다.
-- 타이밍 컬럼과 섹터 필터는 대시보드에서 제외한다.
-- 상세 화면은 표 왼쪽 체크박스로 선택된 종목을 카드/표/차트로 요약한다.
+Streamlit dashboard for financial metrics screening across Korean market universes.
+The app focuses on data processing, screening filters, dashboard interaction, and reproducible outputs.
 """
 
 from __future__ import annotations
@@ -26,7 +22,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="피터린치 + 그레이엄 대시보드",
+    page_title="Fundamental Screening Dashboard",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -90,39 +86,39 @@ TIMING_KEYWORDS = [
 ]
 
 EPS_BASIS_COL = {
-    "1년": "연간이익증가율(1년,%)",
-    "3년": "연간이익증가율(3년CAGR,%)",
-    "5년": "연간이익증가율(5년CAGR,%)",
-    "자동": "사용연성장률(%)",
+    "1Y": "연간이익증가율(1년,%)",
+    "3Y": "연간이익증가율(3년CAGR,%)",
+    "5Y": "연간이익증가율(5년CAGR,%)",
+    "Auto": "사용연성장률(%)",
 }
 
 GRAHAM_BASIS_COL = {
-    "1년": "그레이엄괴리율(1년,%)",
-    "3년": "그레이엄괴리율(3년,%)",
-    "5년": "그레이엄괴리율(5년,%)",
-    "자동": "그레이엄괴리율(선택,%)",
+    "1Y": "그레이엄괴리율(1년,%)",
+    "3Y": "그레이엄괴리율(3년,%)",
+    "5Y": "그레이엄괴리율(5년,%)",
+    "Auto": "그레이엄괴리율(선택,%)",
 }
 
 SORT_MODE_SPECS = {
-    "린치 우선(기본)": [
+    "Lynch-style ratio first (default)": [
         ("린치PER배수", True),
         ("배당감안점수", False),
         ("비교 EPS성장률(%)", False),
         ("비교 그레이엄괴리율(%)", False),
     ],
-    "EPS성장률 우선": [
+    "EPS growth first": [
         ("비교 EPS성장률(%)", False),
         ("린치PER배수", True),
         ("배당감안점수", False),
         ("비교 그레이엄괴리율(%)", False),
     ],
-    "그레이엄괴리율 우선": [
+    "Graham gap first": [
         ("비교 그레이엄괴리율(%)", False),
         ("린치PER배수", True),
         ("배당감안점수", False),
         ("비교 EPS성장률(%)", False),
     ],
-    "배당감안점수 우선": [
+    "Dividend-adjusted score first": [
         ("배당감안점수", False),
         ("린치PER배수", True),
         ("비교 EPS성장률(%)", False),
@@ -131,7 +127,7 @@ SORT_MODE_SPECS = {
 }
 
 TEXT_EXACT_COLS = {
-    "종목코드", "종목명", "그룹", "판정구분", "비고",
+    "종목코드", "종목명", "그룹", "판정구분", "Notes",
     "현금보다부채많음(린치형)", "현금보다부채많음(보수형)",
     "주주대부채판정", "업종보정유형", "업종보정판정",
     "그레이엄사용기준", "배당감안점수기준", "배당감안점수판정",
@@ -167,6 +163,55 @@ GROUP_RULES = [
     ("제지/목재", ["제지", "페이퍼", "홈데코", "성창기업"]),
     ("상사/무역", ["상사", "글로벌", "인터내셔널", "네트웍스"]),
 ]
+
+
+DISPLAY_TRANSLATIONS = {
+    "1Y": "1Y", "3Y": "3Y", "5Y": "5Y", "자동": "Auto",
+    "메인": "Main", "직접추가": "Manually Added", "기타/확인필요": "Other / Needs Review",
+    "매우 유망": "Very Attractive", "헐값": "Undervalued", "보통": "Neutral", "매우 불리": "Unfavorable",
+    "안심(>=2)": "Strong (>=2)", "양호(>=1.5)": "Positive (>=1.5)", "보통(1~1.5)": "Neutral (1~1.5)", "불리(<1)": "Weak (<1)",
+    "판정불가": "Not Available", "보류": "Hold / Review", "제외": "Excluded", "양호": "Positive",
+    "금융/은행/증권/보험": "Financials / Banks / Securities / Insurance",
+    "자동차/자동차부품": "Automotive / Auto Parts", "자동차부품": "Auto Parts",
+    "IT서비스/인터넷/게임": "IT Services / Internet / Games", "IT서비스/모빌리티SW": "IT Services / Mobility SW",
+    "전기전자/전력장비": "Electronics / Power Equipment", "디스플레이": "Display",
+    "건설/인프라": "Construction / Infrastructure", "조선/기계": "Shipbuilding / Machinery",
+    "화학/소재": "Chemicals / Materials", "철강/금속": "Steel / Metals", "운송/물류": "Transportation / Logistics",
+    "유통/소비/레저": "Retail / Consumer / Leisure", "음식료/필수소비": "Food & Staples", "제약/바이오": "Pharma / Bio",
+    "제약/지주": "Pharma / Holding Company", "지주/복합": "Holdings / Conglomerates", "광고/서비스": "Advertising / Services",
+    "제지/목재": "Paper / Wood", "상사/무역": "Trading / Commerce",
+    "현금보다부채많음": "Debt Exceeds Cash", "통과": "Pass", "실패": "Fail",
+}
+
+DISPLAY_COLUMN_LABELS = {
+    "순위": "Rank", "종목코드": "Ticker", "종목명": "Company", "그룹": "Group", "원본그룹": "Original Group",
+    "판정구분": "Classification", "Notes": "Notes", "종합판정": "Overall Signal", "종합판정사유": "Overall Reason",
+    "린치PER배수": "Lynch-style Ratio*", "린치PER판정": "Lynch-style Signal*", "배당감안점수": "Dividend-adjusted Score*",
+    "배당감안점수판정": "Dividend-adjusted Signal*", "성장률 기준": "EPS Growth Basis", "비교 EPS성장률(%)": "EPS Growth for Comparison (%)",
+    "그레이엄 기준": "Graham Gap Basis", "비교 그레이엄괴리율(%)": "Graham Gap for Comparison (%)",
+    "Dividend Yield (%)": "Dividend Yield (%)", "Net Cash / Share (Lynch-style)": "Net Cash / Share (Lynch-style)",
+    "Net Cash / Share (Conservative)": "Net Cash / Share (Conservative)", "FCF / Share": "FCF / Share", "Short-term Risk Debt": "Short-term Risk Debt",
+    "순현금차감PER(린치식)": "Ex-Cash P/E (Lynch-style)", "순현금차감PER(보수형)": "Ex-Cash P/E (Conservative)",
+    "하드필터사유": "Hard Filter Reason", "현재가": "Current Price", "EPS(FY2025)": "EPS (FY2025)", "현금배당금(FY2025 DPS)": "Cash Dividend (FY2025 DPS)",
+    "Cash & Cash Equivalents": "Cash & Cash Equivalents", "Marketable Securities": "Marketable Securities", "Long-term Debt": "Long-term Debt", "주주지분": "Shareholders' Equity",
+    "총부채": "Total Liabilities", "발행주식수": "Shares Outstanding", "잉여현금흐름수익률(%)": "FCF Yield (%)",
+    "연간이익증가율(1년,%)": "EPS Growth 1Y (%)", "연간이익증가율(3년CAGR,%)": "EPS Growth 3Y CAGR (%)", "연간이익증가율(5년CAGR,%)": "EPS Growth 5Y CAGR (%)",
+    "그레이엄적정PER(선택)": "Graham Fair P/E (Selected)", "그레이엄내재가치(선택)": "Graham Intrinsic Value (Selected)", "그레이엄괴리율(선택,%)": "Graham Gap (Selected, %)",
+    "그레이엄사용기준": "Graham Basis Used", "사용연성장률기준": "Growth Basis Used", "사용연성장률(%)": "Growth Used (%)",
+    "현금보다부채많음(린치형)": "Debt > Cash (Lynch-style)", "현금보다부채많음(보수형)": "Debt > Cash (Conservative)",
+    "주주대부채판정": "Equity-to-Debt Signal", "업종보정유형": "Sector Adjustment Type", "업종보정판정": "Sector-adjusted Signal",
+    "그레이엄괴리율(1년,%)": "Graham Gap 1Y (%)", "그레이엄괴리율(3년,%)": "Graham Gap 3Y (%)", "그레이엄괴리율(5년,%)": "Graham Gap 5Y (%)",
+    "시장구분": "Market", "하드필터통과": "Hard Filter Pass", "배당감안점수기준": "Dividend-adjusted Score Basis",
+}
+
+def display_text(value) -> str:
+    s = clean_text(value)
+    return DISPLAY_TRANSLATIONS.get(s, s)
+
+
+def display_label(value) -> str:
+    s = str(value)
+    return DISPLAY_COLUMN_LABELS.get(s, DISPLAY_TRANSLATIONS.get(s, s))
 
 
 def infer_group(code: str, name: str, group: str) -> str:
@@ -257,7 +302,7 @@ def fmt(value, decimals: int = 2) -> str:
         if abs(n) >= 1000:
             return f"{n:,.0f}"
         return f"{n:.{decimals}f}"
-    return s
+    return display_text(s)
 
 
 def first_existing(cols: Iterable[str], df: pd.DataFrame) -> Optional[str]:
@@ -295,7 +340,7 @@ def _missing_mask(s: pd.Series) -> pd.Series:
 
 
 def _choose_growth_series(df: pd.DataFrame, eps_basis: str) -> tuple[pd.Series, str]:
-    if eps_basis != "자동":
+    if eps_basis != "Auto":
         col = EPS_BASIS_COL.get(eps_basis, "연간이익증가율(3년CAGR,%)")
         return num_series(df, col), eps_basis
 
@@ -303,42 +348,42 @@ def _choose_growth_series(df: pd.DataFrame, eps_basis: str) -> tuple[pd.Series, 
         out = num_series(df, "사용연성장률(%)")
     else:
         out = pd.Series(np.nan, index=df.index)
-    for label, col in [("3년", "연간이익증가율(3년CAGR,%)"), ("5년", "연간이익증가율(5년CAGR,%)"), ("1년", "연간이익증가율(1년,%)")]:
+    for label, col in [("3Y", "연간이익증가율(3년CAGR,%)"), ("5Y", "연간이익증가율(5년CAGR,%)"), ("1Y", "연간이익증가율(1년,%)")]:
         cand = num_series(df, col)
         m = out.isna() & cand.notna()
         out.loc[m] = cand.loc[m]
-    return out, "자동"
+    return out, "Auto"
 
 
 def _classify_lynch_ratio(x) -> str:
     v = to_num(x)
     if pd.isna(v):
-        return "판정불가"
+        return "Not Available"
     if v <= 0.5:
-        return "매우 유망"
+        return "Very Attractive"
     if v < 1:
-        return "헐값"
+        return "Undervalued"
     if v < 2:
-        return "보통"
-    return "매우 불리"
+        return "Neutral"
+    return "Unfavorable"
 
 
 def _classify_dividend_score(x) -> str:
     v = to_num(x)
     if pd.isna(v):
-        return "판정불가"
+        return "Not Available"
     if v >= 2:
-        return "안심(>=2)"
+        return "Strong (>=2)"
     if v >= 1.5:
-        return "양호(>=1.5)"
+        return "Positive (>=1.5)"
     if v >= 1:
-        return "보통(1~1.5)"
-    return "불리(<1)"
+        return "Neutral (1~1.5)"
+    return "Weak (<1)"
 
 
 def _hard_filter_from_values(df: pd.DataFrame) -> pd.Series:
-    net_cash = num_series(df, "주당순현금(린치식)")
-    fcf_col = first_existing(["주당잉여현금흐름", "FCF per Share", "FCF"], df)
+    net_cash = num_series(df, "Net Cash / Share (Lynch-style)")
+    fcf_col = first_existing(["FCF / Share", "FCF per Share", "FCF"], df)
     fcf = num_series(df, fcf_col) if fcf_col else pd.Series(np.nan, index=df.index)
     ex_pe = num_series(df, "순현금차감PER(린치식)")
     return (net_cash > 0) & (fcf > 0) & (ex_pe > 0)
@@ -353,14 +398,14 @@ def repair_derived_metrics(df: pd.DataFrame, eps_basis: str) -> pd.DataFrame:
     ex_pe = num_series(out, "순현금차감PER(린치식)")
     price = num_series(out, "현재가")
     eps = num_series(out, "EPS(FY2025)")
-    net_cash = num_series(out, "주당순현금(린치식)")
+    net_cash = num_series(out, "Net Cash / Share (Lynch-style)")
     calc_ex_pe = (price - net_cash) / eps.replace(0, np.nan)
     m = ex_pe.isna() & calc_ex_pe.notna()
     out.loc[m, "순현금차감PER(린치식)"] = calc_ex_pe.loc[m]
     ex_pe = num_series(out, "순현금차감PER(린치식)")
 
     growth, _ = _choose_growth_series(out, eps_basis)
-    div_yield = num_series(out, "배당수익률(%)")
+    div_yield = num_series(out, "Dividend Yield (%)")
 
     if "린치PER배수" not in out.columns:
         out["린치PER배수"] = np.nan
@@ -405,11 +450,11 @@ def repair_derived_metrics(df: pd.DataFrame, eps_basis: str) -> pd.DataFrame:
     hard = _hard_filter_from_values(out)
     ratio2 = num_series(out, "린치PER배수")
     adj2 = num_series(out, "배당감안점수")
-    recovered = pd.Series("보류", index=out.index, dtype=object)
-    recovered.loc[~hard] = "제외"
-    recovered.loc[hard & (ratio2 <= 0.5) & (adj2 >= 2)] = "매우 유망"
-    recovered.loc[hard & (ratio2 < 1) & (adj2 >= 1.5) & (recovered != "매우 유망")] = "양호"
-    recovered.loc[ratio2.isna() | adj2.isna()] = "판정불가"
+    recovered = pd.Series("Hold / Review", index=out.index, dtype=object)
+    recovered.loc[~hard] = "Excluded"
+    recovered.loc[hard & (ratio2 <= 0.5) & (adj2 >= 2)] = "Very Attractive"
+    recovered.loc[hard & (ratio2 < 1) & (adj2 >= 1.5) & (recovered != "Very Attractive")] = "Positive"
+    recovered.loc[ratio2.isna() | adj2.isna()] = "Not Available"
     out.loc[m, "종합판정"] = recovered.loc[m]
 
     return out
@@ -443,7 +488,7 @@ def unique_values(df: pd.DataFrame, col: str) -> list[str]:
 def checkbox_group(label: str, df: pd.DataFrame, col: str, key_prefix: str, *, expanded: bool = False) -> Optional[set[str]]:
     vals = unique_values(df, col)
     if not vals:
-        st.caption(f"{label}: 해당 컬럼 없음")
+        st.caption(f"{label}: column not found")
         return None
 
     selected: set[str] = set()
@@ -477,15 +522,15 @@ def apply_filters(
     apply_text_filter("배당감안점수판정", selected_dividend)
 
     if require_net_cash:
-        out = out[num_series(out, "주당순현금(린치식)") > 0]
+        out = out[num_series(out, "Net Cash / Share (Lynch-style)") > 0]
 
     if require_fcf:
-        fcf_col = first_existing(["주당잉여현금흐름", "FCF per Share", "FCF"], out)
+        fcf_col = first_existing(["FCF / Share", "FCF per Share", "FCF"], out)
         if fcf_col:
             out = out[num_series(out, fcf_col) > 0]
 
-    if require_no_short_risky_debt and "단기위험부채" in out.columns:
-        risky = num_series(out, "단기위험부채")
+    if require_no_short_risky_debt and "Short-term Risk Debt" in out.columns:
+        risky = num_series(out, "Short-term Risk Debt")
         # 위험부채는 >0이면 제외. 0 또는 공란/미추출은 통과로 둔다.
         out = out[risky.isna() | (risky <= 0)]
 
@@ -494,7 +539,7 @@ def apply_filters(
 
 def sort_dashboard(df: pd.DataFrame, sort_mode: str) -> pd.DataFrame:
     out = df.copy()
-    sort_specs = SORT_MODE_SPECS.get(sort_mode, SORT_MODE_SPECS["린치 우선(기본)"])
+    sort_specs = SORT_MODE_SPECS.get(sort_mode, SORT_MODE_SPECS["Lynch-style ratio first (default)"])
 
     sort_cols = []
     ascending = []
@@ -529,7 +574,7 @@ def present_table(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
     numeric_like = [
         "현재가", "린치PER배수", "배당감안점수", "비교 EPS성장률(%)", "비교 그레이엄괴리율(%)",
-        "배당수익률(%)", "주당순현금(린치식)", "주당잉여현금흐름", "단기위험부채",
+        "Dividend Yield (%)", "Net Cash / Share (Lynch-style)", "FCF / Share", "Short-term Risk Debt",
         "순현금차감PER(린치식)", "그레이엄괴리율(선택,%)", "잉여현금흐름수익률(%)",
     ]
     for c in numeric_like:
@@ -538,7 +583,8 @@ def present_table(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
     for c in out.columns:
         if c in TEXT_EXACT_COLS or c not in numeric_like:
-            out[c] = out[c].map(lambda x: clean_text(x) or "-")
+            out[c] = out[c].map(lambda x: display_text(clean_text(x) or "-"))
+    out = out.rename(columns=DISPLAY_COLUMN_LABELS)
     return out
 
 
@@ -547,22 +593,25 @@ def chart_series(row: pd.Series, mapping: dict[str, str]) -> pd.DataFrame:
     for label, col in mapping.items():
         value = to_num(row.get(col))
         if not pd.isna(value):
-            records.append({"항목": label, "값": value})
+            records.append({"Metric": display_label(label), "Value": value})
     return pd.DataFrame(records)
 
 
 def render_method_text():
     st.markdown(
         """
-#### 피터 린치
-순현금·FCF·성장성을 함께 보고, **Ex-Cash P/E 기반 PEG·PEGY**로 성장 대비 가격 매력을 평가합니다.  
-단, **순현금 음수 / FCF 음수 / 단기위험부채 존재** 종목은 하드필터로 제외할 수 있습니다.
+#### Lynch-style metrics
+The dashboard compares net cash, free cash flow, growth, and price using Ex-Cash P/E based PEG / PEGY-style metrics.
 
-#### 벤저민 그레이엄
-EPS와 성장률로 **적정PER·내재가치·괴리율**을 계산해 현재가의 저평가 가능성을 봅니다.  
-우선순위는 **EPS 성장률(기본 3년 CAGR)**과 **그레이엄 괴리율**이 큰 순으로 참고할 수 있습니다.
+Optional hard filters can exclude companies with negative net cash, negative FCF, or short-term risk debt.
+
+#### Graham-style reference
+The dashboard estimates a fair P/E, intrinsic value reference, and valuation gap using EPS and growth assumptions.
+
+The output should be used as a screening reference, not as an investment recommendation.
         """
     )
+
 
 
 
@@ -588,21 +637,21 @@ def sum_existing(row: pd.Series, cols: list[str]) -> float:
 
 
 def cash_debt_values(row: pd.Series) -> dict[str, float]:
-    cash = to_num(row.get("현금및현금성자산"))
-    securities = to_num(row.get("유가증권성자산"))
-    cash_like = sum_existing(row, ["현금및현금성자산", "유가증권성자산"])
-    long_debt = to_num(row.get("장기부채"))
-    short_risky = to_num(row.get("단기위험부채"))
+    cash = to_num(row.get("Cash & Cash Equivalents"))
+    securities = to_num(row.get("Marketable Securities"))
+    cash_like = sum_existing(row, ["Cash & Cash Equivalents", "Marketable Securities"])
+    long_debt = to_num(row.get("Long-term Debt"))
+    short_risky = to_num(row.get("Short-term Risk Debt"))
     long_debt_zero = 0.0 if pd.isna(long_debt) else long_debt
     short_risky_zero = 0.0 if pd.isna(short_risky) else short_risky
     cash_like_zero = 0.0 if pd.isna(cash_like) else cash_like
     debt_total = long_debt_zero + short_risky_zero
     return {
-        "현금및현금성자산": cash,
-        "유가증권성자산": securities,
+        "Cash & Cash Equivalents": cash,
+        "Marketable Securities": securities,
         "현금성자산합계": cash_like,
-        "장기부채": long_debt,
-        "단기위험부채": short_risky,
+        "Long-term Debt": long_debt,
+        "Short-term Risk Debt": short_risky,
         "부채합계_장기+단기위험": debt_total if debt_total != 0 else np.nan,
         "순현금_린치식": cash_like_zero - long_debt_zero if not pd.isna(cash_like) else np.nan,
         "순현금_보수형": cash_like_zero - long_debt_zero - short_risky_zero if not pd.isna(cash_like) else np.nan,
@@ -612,56 +661,56 @@ def cash_debt_values(row: pd.Series) -> dict[str, float]:
 
 def render_cash_debt_summary(row: pd.Series):
     vals = cash_debt_values(row)
-    st.markdown("#### 현금성 자산 / 부채 구조")
-    st.caption("현금성자산합계 = 현금및현금성자산 + 유가증권성자산. 부채는 장기부채와 단기위험부채를 분리해 봅니다.")
+    st.markdown("#### Cash-like Assets / Debt Structure")
+    st.caption("Cash-like assets = cash & cash equivalents + marketable securities. Debt is separated into long-term debt and short-term risk debt.")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("현금성자산 합계", fmt(vals["현금성자산합계"]))
-    c2.metric("장기부채", fmt(vals["장기부채"]))
-    c3.metric("단기위험부채", fmt(vals["단기위험부채"]))
-    c4.metric("보수형 순현금", fmt(vals["순현금_보수형"]))
+    c1.metric("Cash-like Assets", fmt(vals["현금성자산합계"]))
+    c2.metric("Long-term Debt", fmt(vals["Long-term Debt"]))
+    c3.metric("Short-term Risk Debt", fmt(vals["Short-term Risk Debt"]))
+    c4.metric("Conservative Net Cash", fmt(vals["순현금_보수형"]))
 
     chart_rows = []
     for label, key in [
-        ("현금성자산 합계", "현금성자산합계"),
-        ("장기부채", "장기부채"),
-        ("단기위험부채", "단기위험부채"),
-        ("장기+단기위험부채", "부채합계_장기+단기위험"),
+        ("Cash-like Assets", "현금성자산합계"),
+        ("Long-term Debt", "Long-term Debt"),
+        ("Short-term Risk Debt", "Short-term Risk Debt"),
+        ("Long-term + Short-term Risk Debt", "부채합계_장기+단기위험"),
     ]:
         v = vals.get(key)
         if not pd.isna(v):
-            chart_rows.append({"항목": label, "값": v})
+            chart_rows.append({"Item": label, "Value": v})
     if chart_rows:
-        st.bar_chart(pd.DataFrame(chart_rows).set_index("항목"))
+        st.bar_chart(pd.DataFrame(chart_rows).set_index("Metric"))
 
     table_rows = [
-        {"구분": "현금성자산", "항목": "현금및현금성자산", "값": fmt(vals["현금및현금성자산"], 0), "해석": "가장 직접적인 현금"},
-        {"구분": "현금성자산", "항목": "유가증권성자산", "값": fmt(vals["유가증권성자산"], 0), "해석": "현금화 가능한 금융자산"},
-        {"구분": "부채", "항목": "장기부채", "값": fmt(vals["장기부채"], 0), "해석": "린치식 순현금 계산에서 차감"},
-        {"구분": "부채", "항목": "단기위험부채", "값": fmt(vals["단기위험부채"], 0), "해석": "있으면 별도 위험 신호로 봄"},
-        {"구분": "순현금", "항목": "린치식 순현금", "값": fmt(vals["순현금_린치식"], 0), "해석": "현금성자산 - 장기부채"},
-        {"구분": "순현금", "항목": "보수형 순현금", "값": fmt(vals["순현금_보수형"], 0), "해석": "현금성자산 - 장기부채 - 단기위험부채"},
+        {"Category": "Cash-like Assets", "Item": "Cash & Cash Equivalents", "Value": fmt(vals["Cash & Cash Equivalents"], 0), "Interpretation": "Most direct cash item"},
+        {"Category": "Cash-like Assets", "Item": "Marketable Securities", "Value": fmt(vals["Marketable Securities"], 0), "Interpretation": "Liquid financial assets"},
+        {"Category": "Debt", "Item": "Long-term Debt", "Value": fmt(vals["Long-term Debt"], 0), "Interpretation": "Subtracted in Lynch-style net cash calculation"},
+        {"Category": "Debt", "Item": "Short-term Risk Debt", "Value": fmt(vals["Short-term Risk Debt"], 0), "Interpretation": "Interpreted as a separate risk signal if present"},
+        {"Category": "Net Cash", "Item": "Lynch-style Net Cash", "Value": fmt(vals["순현금_린치식"], 0), "Interpretation": "Cash-like assets - long-term debt"},
+        {"Category": "Net Cash", "Item": "Conservative Net Cash", "Value": fmt(vals["순현금_보수형"], 0), "Interpretation": "Cash-like assets - long-term debt - short-term risk debt"},
     ]
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
 
 def render_short_risky_debt_detail(row: pd.Series):
-    st.markdown("#### 단기위험부채 해석")
-    total = to_num(row.get("단기위험부채"))
+    st.markdown("#### Short-term Risk Debt Interpretation")
+    total = to_num(row.get("Short-term Risk Debt"))
     if pd.isna(total) or total <= 0:
-        st.success("이 종목은 현재 TSV 기준 단기위험부채가 0 또는 공란으로 표시됩니다.")
+        st.success("Short-term risk debt is zero or blank in the current TSV output.")
     else:
-        st.warning(f"단기위험부채 총액이 {fmt(total, 0)}로 잡혀 있습니다. 원천 TSV에는 세부 항목별 금액이 분리되어 있지 않아 총액 기준으로 표시합니다.")
+        st.warning(f"Short-term risk debt is recorded as {fmt(total, 0)}. The source TSV does not split this into detailed sub-items, so the dashboard shows the total value.")
 
     rows = [
-        {"구분": "은행성 단기조달", "후보 항목": "단기차입금", "대시보드 표시": "총액에 포함 가능", "비고": "1년 내 상환 부담"},
-        {"구분": "은행성 단기조달", "후보 항목": "유동차입금", "대시보드 표시": "총액에 포함 가능", "비고": "유동성으로 분류된 차입"},
-        {"구분": "어음/CP 계열", "후보 항목": "기업어음", "대시보드 표시": "총액에 포함 가능", "비고": "린치가 경계한 단기성 조달 취지에 가까움"},
-        {"구분": "어음/CP 계열", "후보 항목": "상업어음", "대시보드 표시": "총액에 포함 가능", "비고": "단기 상환 압박 가능"},
-        {"구분": "시장성 단기조달", "후보 항목": "전자단기사채", "대시보드 표시": "총액에 포함 가능", "비고": "한국 공시 실무 확장 항목"},
+        {"Category": "Bank-like short-term funding", "Candidate Item": "Short-term borrowings", "Dashboard Display": "May be included in total", "Notes": "1년 내 상환 부담"},
+        {"Category": "Bank-like short-term funding", "Candidate Item": "Current borrowings", "Dashboard Display": "May be included in total", "Notes": "유동성으로 분류된 차입"},
+        {"Category": "어음/CP 계열", "Candidate Item": "Commercial paper", "Dashboard Display": "May be included in total", "Notes": "린치가 경계한 단기성 조달 취지에 가까움"},
+        {"Category": "어음/CP 계열", "Candidate Item": "Trade bills", "Dashboard Display": "May be included in total", "Notes": "단기 상환 압박 가능"},
+        {"Category": "시장성 단기조달", "Candidate Item": "Short-term electronic bonds", "Dashboard Display": "May be included in total", "Notes": "한국 공시 실무 확장 항목"},
     ]
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=210)
-    st.caption("세부 항목별 금액까지 보려면 스크리너 원본에서 단기차입금/유동차입금/기업어음/상업어음/전자단기사채를 각각 별도 컬럼으로 출력해야 합니다.")
+    st.caption("To inspect detailed sub-items, the original screener should export short-term borrowings, current borrowings, commercial paper, trade bills, and short-term electronic bonds as separate columns.")
 
 
 def sector_note(row: pd.Series) -> str:
@@ -671,17 +720,16 @@ def sector_note(row: pd.Series) -> str:
     adj_judge = clean_text(row.get("업종보정판정"))
     parts = []
     if fit and fit != "메인":
-        parts.append(f"판정구분이 '{fit}'이므로 린치식 단독판정 비중을 낮춰 보는 편이 안전합니다.")
+        parts.append(f"Classification is '{display_text(fit)}', so the Lynch-style standalone signal should be interpreted with lower weight.")
     if adj_type or adj_judge:
-        parts.append(f"업종보정: {adj_type or '-'} / {adj_judge or '-'}")
+        parts.append(f"Sector adjustment: {display_text(adj_type) or '-'} / {display_text(adj_judge) or '-'}")
     if any(k in group for k in ["금융", "은행", "증권", "보험"]):
-        parts.append("금융주는 현금·부채 구조가 일반 제조업과 달라 Ex-Cash P/E·FCF 필터를 그대로 적용하면 왜곡될 수 있습니다.")
+        parts.append("Financial companies have balance-sheet structures that differ from manufacturers, so cash, debt, Ex-Cash P/E, and FCF filters can be distorted.")
     elif any(k in group for k in ["통신", "유틸", "전력", "에너지", "철강", "석유", "화학", "조선"]):
-        parts.append("자본집약 업종은 부채와 CAPEX가 구조적으로 크므로 FCF와 부채 필터를 업종 평균과 함께 봐야 합니다.")
+        parts.append("Capital-intensive sectors require sector-aware interpretation of debt, CAPEX, and FCF cycles.")
     elif group:
-        parts.append("일반 업종은 순현금·FCF·성장 대비 가격 매력을 비교적 직관적으로 적용할 수 있습니다.")
-    return " ".join(parts) if parts else "업종 해석 정보가 부족합니다."
-
+        parts.append("For general operating companies, net cash, FCF, and growth-to-price metrics can be interpreted more directly.")
+    return " ".join(parts) if parts else "Sector interpretation data is limited."
 
 
 def business_hint(row: pd.Series) -> str:
@@ -689,24 +737,24 @@ def business_hint(row: pd.Series) -> str:
     group = clean_text(row.get("그룹"))
     raw_group = clean_text(row.get("원본그룹"))
     known = {
-        "현대오토에버": "현대차그룹의 IT서비스·차량 소프트웨어·모빌리티 플랫폼 관련 기업입니다.",
-        "HL만도": "자동차 부품, 제동·조향·현가장치 및 전장 부품 관련 기업입니다.",
-        "SK하이닉스": "DRAM·NAND 중심의 메모리 반도체 기업입니다.",
-        "삼성전자": "반도체·스마트폰·가전 등 종합 전자 기업입니다.",
-        "제룡전기": "변압기 등 전력기기 관련 기업입니다.",
-        "이수페타시스": "고다층 PCB, 통신장비·AI 서버 기판 관련 기업입니다.",
-        "동아쏘시오홀딩스": "동아쏘시오그룹 지주회사로 제약·바이오·물류 등 계열사를 보유합니다.",
+        "현대오토에버": "Hyundai AutoEver is related to IT services, vehicle software, and mobility platforms within Hyundai Motor Group.",
+        "HL만도": "HL Mando is an auto-parts company focused on braking, steering, suspension, and electronic systems.",
+        "SK하이닉스": "SK hynix is a memory semiconductor company focused on DRAM and NAND.",
+        "삼성전자": "Samsung Electronics is a diversified electronics company spanning semiconductors, smartphones, and consumer electronics.",
+        "제룡전기": "Jeryong Electric is related to power equipment such as transformers.",
+        "이수페타시스": "Isu Petasys is related to multilayer PCBs for telecom equipment and AI server infrastructure.",
+        "동아쏘시오홀딩스": "Dong-A Socio Holdings is a holding company with pharma, bio, and logistics subsidiaries.",
     }
     for k, v in known.items():
         if k in name:
-            extra = f" 표시 업종: {group}." if group else ""
+            extra = f" Display group: {display_text(group)}." if group else ""
             return v + extra
 
     if group in {"기타/확인필요", ""}:
-        return "원본 TSV에 사업설명 컬럼이 없어 회사 설명은 제한적입니다. DART 사업보고서와 함께 확인하세요."
+        return "The source TSV does not include a business description column. Check DART filings for more details."
 
-    raw = f" 원본 그룹은 '{raw_group}'이었고, 대시보드 표시용으로 업종을 추정했습니다." if raw_group == "직접추가" else ""
-    return f"{group} 성격의 기업으로 분류해 표시합니다.{raw}"
+    raw = " The original group was 'Manually Added'; the dashboard inferred a display group." if raw_group == "직접추가" else ""
+    return f"Displayed as a {display_text(group)} company.{raw}"
 
 
 def dart_search_url(name: str) -> str:
@@ -759,8 +807,8 @@ def render_copy_code_button(code: str):
         f"""
         <div style="display:flex; gap:8px; align-items:center; margin: 2px 0 10px 0;">
           <code id="stock-code-copy" style="font-size:16px; padding:6px 10px; border-radius:8px; background:#111827; color:#e5e7eb;">{code}</code>
-          <button onclick="navigator.clipboard.writeText('{code}'); this.innerText='복사됨'; setTimeout(()=>this.innerText='종목코드 복사', 1200);"
-             style="padding:6px 10px; border-radius:8px; border:1px solid #4b5563; background:#1f2937; color:#e5e7eb; cursor:pointer;">종목코드 복사</button>
+          <button onclick="navigator.clipboard.writeText('{code}'); this.innerText='Copied'; setTimeout(()=>this.innerText='Copy Ticker', 1200);"
+             style="padding:6px 10px; border-radius:8px; border:1px solid #4b5563; background:#1f2937; color:#e5e7eb; cursor:pointer;">Copy Ticker</button>
         </div>
         """,
         height=44,
@@ -771,7 +819,7 @@ def render_company_overview(row: pd.Series):
     name = clean_text(row.get("종목명"))
     group = clean_text(row.get("그룹")) or "-"
     fit = clean_text(row.get("판정구분")) or "-"
-    st.markdown("#### 회사 / 업종 요약")
+    st.markdown("#### Company / Sector Overview")
     st.markdown(
         f"""
 <div class='hint-box'>
@@ -783,133 +831,133 @@ def render_company_overview(row: pd.Series):
     )
     if name:
         code = clean_text(row.get("종목코드"))
-        st.markdown("**공시 / 종목 리포트 바로가기**")
+        st.markdown("**Disclosure / Research Links**")
         b1, b2, b3, b4 = st.columns([1, 1, 1, 1])
         with b1:
-            st.link_button("DART 공시", dart_search_url(name), use_container_width=True)
+            st.link_button("DART Disclosure", dart_search_url(name), use_container_width=True)
         with b2:
             st.link_button("FnGuide Snapshot", fnguide_url(code), use_container_width=True)
         with b3:
             st.link_button("FnGuide Consensus", fnguide_consensus_url(code), use_container_width=True)
         with b4:
-            st.link_button("한경컨센서스", hankyung_consensus_url(code), use_container_width=True)
+            st.link_button("Hankyung Consensus", hankyung_consensus_url(code), use_container_width=True)
 
         b5, b6, b7, b8 = st.columns([1, 1, 1, 1])
         with b5:
-            st.link_button("네이버 종목", naver_finance_url(code), use_container_width=True)
+            st.link_button("Naver Finance", naver_finance_url(code), use_container_width=True)
         with b6:
-            st.link_button("네이버 리서치 목록", naver_research_company_list_url(), use_container_width=True)
+            st.link_button("Naver Research List", naver_research_company_list_url(), use_container_width=True)
         with b7:
-            st.link_button("Google PDF 리포트 검색", google_pdf_report_search_url(name, code), use_container_width=True)
+            st.link_button("Google PDF Report Search", google_pdf_report_search_url(name, code), use_container_width=True)
         with b8:
-            st.link_button("KRX KIND 보고서 검색", kind_report_search_url(name, code), use_container_width=True)
+            st.link_button("KRX KIND Report Search", kind_report_search_url(name, code), use_container_width=True)
 
 
 def render_sector_guidance(row: pd.Series):
-    st.markdown("#### 업종별 해석 메모")
+    st.markdown("#### Sector Interpretation Notes")
     st.info(sector_note(row))
 
 
 def render_method_legend_compact():
-    with st.expander("지표 기준 설명", expanded=False):
+    with st.expander("Metric Guide", expanded=False):
         st.markdown(
             """
-- **린치PER배수\***: **Ex-Cash PEG (Custom)**. `0.5 이하 = 매우 유망`, `1 미만 = 헐값`.
-- **배당감안점수\***: **Ex-Cash PEGY Score (Custom)**. `2.0 이상 = 강한 편`, `1.5 이상 = 양호`.
-- **0.00처럼 보이는 린치PER배수**는 실제 값이 매우 작아서 반올림됐거나, 순현금이 주가에 거의 근접한 경우일 수 있습니다. 상세에서는 순현금차감PER를 같이 확인하세요.
+- **Lynch-style Ratio\***: **Ex-Cash PEG (Custom)**. `<= 0.5 = Very Attractive`, `< 1 = Undervalued`.
+- **Dividend-adjusted Score\***: **Ex-Cash PEGY Score (Custom)**. `>= 2.0 = Strong`, `>= 1.5 = Positive`.
+- A Lynch-style ratio displayed as **0.00** may be a very small rounded value or may indicate that net cash is close to the current price. Check Ex-Cash P/E in the detail panel.
             """
         )
 
 def render_visuals(row: pd.Series):
-    st.markdown("#### 시각 요약")
+    st.markdown("#### Visual Summary")
     v1, v2 = st.columns(2)
 
     with v1:
-        st.markdown("**EPS 성장률 비교**")
+        st.markdown("**EPS Growth Comparison**")
         growth_df = chart_series(row, {
-            "1년": "연간이익증가율(1년,%)",
+            "1Y": "연간이익증가율(1년,%)",
             "3년 CAGR": "연간이익증가율(3년CAGR,%)",
             "5년 CAGR": "연간이익증가율(5년CAGR,%)",
         })
         if growth_df.empty:
-            st.caption("표시 가능한 EPS 성장률 데이터가 없습니다.")
+            st.caption("No EPS growth data available for display.")
         else:
-            st.bar_chart(growth_df.set_index("항목"))
+            st.bar_chart(growth_df.set_index("Metric"))
 
     with v2:
-        st.markdown("**그레이엄 괴리율 비교**")
+        st.markdown("**Graham Gap Comparison**")
         graham_df = chart_series(row, {
-            "1년": "그레이엄괴리율(1년,%)",
-            "3년": "그레이엄괴리율(3년,%)",
-            "5년": "그레이엄괴리율(5년,%)",
-            "선택": "그레이엄괴리율(선택,%)",
+            "1Y": "그레이엄괴리율(1년,%)",
+            "3Y": "그레이엄괴리율(3년,%)",
+            "5Y": "그레이엄괴리율(5년,%)",
+            "Selected": "그레이엄괴리율(선택,%)",
         })
         if graham_df.empty:
-            st.caption("표시 가능한 그레이엄 괴리율 데이터가 없습니다.")
+            st.caption("No Graham gap data available for display.")
         else:
-            st.bar_chart(graham_df.set_index("항목"))
+            st.bar_chart(graham_df.set_index("Metric"))
 
     v3, v4 = st.columns(2)
     with v3:
-        st.markdown("**현금성 자산 / 부채 구조**")
+        st.markdown("**Cash-like Assets / Debt Structure**")
         bs_df = chart_series(row, {
-            "현금및현금성자산": "현금및현금성자산",
-            "유가증권성자산": "유가증권성자산",
-            "장기부채": "장기부채",
-            "단기위험부채": "단기위험부채",
+            "Cash & Cash Equivalents": "Cash & Cash Equivalents",
+            "Marketable Securities": "Marketable Securities",
+            "Long-term Debt": "Long-term Debt",
+            "Short-term Risk Debt": "Short-term Risk Debt",
             "주주지분": "주주지분",
             "총부채": "총부채",
         })
         if bs_df.empty:
-            st.caption("표시 가능한 재무상태표 데이터가 없습니다.")
+            st.caption("No balance sheet data available for display.")
         else:
-            st.bar_chart(bs_df.set_index("항목"))
+            st.bar_chart(bs_df.set_index("Metric"))
 
     with v4:
-        st.markdown("**주당 지표 / 수익률**")
+        st.markdown("**Per-share Metrics / Yields**")
         per_share_df = chart_series(row, {
-            "주당순현금(린치식)": "주당순현금(린치식)",
-            "주당순현금(보수형)": "주당순현금(보수형)",
-            "주당잉여현금흐름": "주당잉여현금흐름",
-            "배당수익률(%)": "배당수익률(%)",
-            "FCF수익률(%)": "잉여현금흐름수익률(%)",
+            "Net Cash / Share (Lynch-style)": "Net Cash / Share (Lynch-style)",
+            "Net Cash / Share (Conservative)": "Net Cash / Share (Conservative)",
+            "FCF / Share": "FCF / Share",
+            "Dividend Yield (%)": "Dividend Yield (%)",
+            "FCF Yield (%)": "잉여현금흐름수익률(%)",
         })
         if per_share_df.empty:
-            st.caption("표시 가능한 주당 지표 데이터가 없습니다.")
+            st.caption("No per-share metric data available for display.")
         else:
-            st.bar_chart(per_share_df.set_index("항목"))
+            st.bar_chart(per_share_df.set_index("Metric"))
 
 
 def render_financial_table(row: pd.Series):
-    st.markdown("#### 재무 원천값 / 상세 지표")
-    st.caption("원천 재무값과 계산 지표를 나눠서 봅니다. 표가 길면 스크롤해서 확인하세요.")
+    st.markdown("#### Source Financial Values / Detailed Metrics")
+    st.caption("Source values and calculated metrics are separated below. Scroll the tables if needed.")
 
     raw_cols = [
         "현재가", "EPS(FY2025)", "현금배당금(FY2025 DPS)",
-        "현금및현금성자산", "유가증권성자산", "장기부채", "단기위험부채",
+        "Cash & Cash Equivalents", "Marketable Securities", "Long-term Debt", "Short-term Risk Debt",
         "주주지분", "총부채", "발행주식수",
     ]
     calc_cols = [
-        "주당순현금(린치식)", "주당순현금(보수형)",
+        "Net Cash / Share (Lynch-style)", "Net Cash / Share (Conservative)",
         "순현금차감PER(린치식)", "순현금차감PER(보수형)",
-        "주당잉여현금흐름", "잉여현금흐름수익률(%)", "배당수익률(%)",
+        "FCF / Share", "잉여현금흐름수익률(%)", "Dividend Yield (%)",
         "연간이익증가율(1년,%)", "연간이익증가율(3년CAGR,%)", "연간이익증가율(5년CAGR,%)",
         "그레이엄적정PER(선택)", "그레이엄내재가치(선택)", "그레이엄괴리율(선택,%)",
     ]
 
     def make_rows(cols):
         return pd.DataFrame([
-            {"항목": c, "값": fmt(row.get(c), 4)} for c in cols if c in row.index
+            {"Item": display_label(c), "Value": fmt(row.get(c), 4)} for c in cols if c in row.index
         ])
 
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("**원천 재무값**")
+        st.markdown("**Source Financial Values**")
         raw_df = make_rows(raw_cols)
         if not raw_df.empty:
             st.dataframe(raw_df, use_container_width=True, hide_index=True, height=360)
     with c2:
-        st.markdown("**계산 지표**")
+        st.markdown("**Calculated Metrics**")
         calc_df = make_rows(calc_cols)
         if not calc_df.empty:
             st.dataframe(calc_df, use_container_width=True, hide_index=True, height=360)
@@ -919,18 +967,18 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
     st.markdown("---")
     name = clean_text(row.get("종목명"))
     code = clean_stock_code(row.get("종목코드"))
-    st.markdown(f"### 🔎 선택 종목 상세: {name} ({code})")
+    st.markdown(f"### Company Detail: {name} ({code})")
     render_copy_code_button(code)
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        mini_card("종합판정 (with filter)", row.get("종합판정"), f"판정구분: {fmt(row.get('판정구분'))}")
+        mini_card("Overall Signal (with filter)", row.get("종합판정"), f"Classification: {fmt(row.get('판정구분'))}")
     with c2:
-        mini_card("린치PER배수*", row.get("린치PER배수"), "Ex-Cash PEG Custom · 0.5 이하 매우 유망 / 1 미만 헐값")
+        mini_card("Lynch-style Ratio*", row.get("린치PER배수"), "Ex-Cash PEG Custom · <= 0.5 Very Attractive / < 1 Undervalued")
     with c3:
-        mini_card("배당감안점수*", row.get("배당감안점수"), "Ex-Cash PEGY Score Custom · 2.0 이상 강한 편 / 1.5 이상 양호")
+        mini_card("Dividend-adjusted Score*", row.get("배당감안점수"), "Ex-Cash PEGY Score Custom · >= 2.0 Strong / >= 1.5 Positive")
     with c4:
-        mini_card("비교 그레이엄괴리율", row.get("비교 그레이엄괴리율(%)"), f"비교 기준: {fmt(row.get('그레이엄 기준'))}")
+        mini_card("Graham Gap for Comparison", row.get("비교 그레이엄괴리율(%)"), f"Basis: {fmt(row.get('그레이엄 기준'))}")
 
     render_method_legend_compact()
 
@@ -939,35 +987,35 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
     left, mid, right = st.columns([1.0, 1.0, 1.0])
 
     with left:
-        st.markdown("#### 기본")
+        st.markdown("#### Basic Info")
         base_rows = [
             ("종목코드", clean_stock_code(row.get("종목코드"))),
             ("종목명", clean_text(row.get("종목명"))),
             ("그룹", clean_text(row.get("그룹"))),
             ("판정구분", fmt(row.get("판정구분"))),
-            ("단기위험부채", fmt(row.get("단기위험부채"))),
+            ("Short-term Risk Debt", fmt(row.get("Short-term Risk Debt"))),
         ]
-        st.dataframe(pd.DataFrame(base_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(base_rows, columns=["Item", "Value"]), use_container_width=True, hide_index=True, height=250)
 
     with mid:
-        st.markdown("#### 린치")
+        st.markdown("#### Lynch-style Metrics")
         lynch_rows = [
             ("린치PER판정*", fmt(row.get("린치PER판정"))),
             ("사용연성장률기준", fmt(row.get("사용연성장률기준"))),
             ("사용연성장률(%)", fmt(row.get("사용연성장률(%)"))),
             ("배당감안점수판정*", fmt(row.get("배당감안점수판정"))),
-            ("배당수익률(%)", fmt(row.get("배당수익률(%)"))),
-            ("FCF수익률(%)", fmt(row.get("잉여현금흐름수익률(%)"))),
+            ("Dividend Yield (%)", fmt(row.get("Dividend Yield (%)"))),
+            ("FCF Yield (%)", fmt(row.get("잉여현금흐름수익률(%)"))),
         ]
         if show_excash_pe:
             lynch_rows += [
                 ("순현금차감PER(린치식)", fmt(row.get("순현금차감PER(린치식)"))),
                 ("순현금차감PER(보수형)", fmt(row.get("순현금차감PER(보수형)"))),
             ]
-        st.dataframe(pd.DataFrame(lynch_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(lynch_rows, columns=["Item", "Value"]), use_container_width=True, hide_index=True, height=250)
 
     with right:
-        st.markdown("#### 그레이엄")
+        st.markdown("#### Graham-style Metrics")
         graham_rows = [
             ("그레이엄사용기준", fmt(row.get("그레이엄사용기준"))),
             ("그레이엄 괴리율 기준", fmt(row.get("그레이엄 기준"))),
@@ -976,44 +1024,44 @@ def render_detail(row: pd.Series, show_excash_pe: bool):
             ("5년 괴리율", fmt(row.get("그레이엄괴리율(5년,%)"))),
             ("선택 괴리율", fmt(row.get("그레이엄괴리율(선택,%)"))),
         ]
-        st.dataframe(pd.DataFrame(graham_rows, columns=["항목", "값"]), use_container_width=True, hide_index=True, height=250)
+        st.dataframe(pd.DataFrame(graham_rows, columns=["Item", "Value"]), use_container_width=True, hide_index=True, height=250)
 
     render_cash_debt_summary(row)
 
     v1, v2 = st.columns(2)
     with v1:
-        st.markdown("#### EPS 성장률 비교")
+        st.markdown("#### EPS Growth Comparison")
         growth_df = chart_series(row, {
-            "1년": "연간이익증가율(1년,%)",
+            "1Y": "연간이익증가율(1년,%)",
             "3년 CAGR": "연간이익증가율(3년CAGR,%)",
             "5년 CAGR": "연간이익증가율(5년CAGR,%)",
         })
         if growth_df.empty:
-            st.caption("표시 가능한 EPS 성장률 데이터가 없습니다.")
+            st.caption("No EPS growth data available for display.")
         else:
-            st.bar_chart(growth_df.set_index("항목"))
+            st.bar_chart(growth_df.set_index("Metric"))
     with v2:
-        st.markdown("#### 그레이엄 괴리율 비교")
+        st.markdown("#### Graham Gap Comparison")
         graham_df = chart_series(row, {
-            "1년": "그레이엄괴리율(1년,%)",
-            "3년": "그레이엄괴리율(3년,%)",
-            "5년": "그레이엄괴리율(5년,%)",
-            "선택": "그레이엄괴리율(선택,%)",
+            "1Y": "그레이엄괴리율(1년,%)",
+            "3Y": "그레이엄괴리율(3년,%)",
+            "5Y": "그레이엄괴리율(5년,%)",
+            "Selected": "그레이엄괴리율(선택,%)",
         })
         if graham_df.empty:
-            st.caption("표시 가능한 그레이엄 괴리율 데이터가 없습니다.")
+            st.caption("No Graham gap data available for display.")
         else:
-            st.bar_chart(graham_df.set_index("항목"))
+            st.bar_chart(graham_df.set_index("Metric"))
 
     render_financial_table(row)
 
     notes = []
-    for col in ["종합판정사유", "하드필터사유", "비고"]:
+    for col in ["종합판정사유", "하드필터사유", "Notes"]:
         s = clean_text(row.get(col))
         if s:
             notes.append((col, s))
     if notes:
-        with st.expander("비고 / 사유", expanded=True):
+        with st.expander("Notes / Reasons", expanded=True):
             for col, s in notes:
                 st.markdown(f"**{col}**")
                 st.markdown(f"<div class='warning-box'>{s}</div>", unsafe_allow_html=True)
@@ -1026,17 +1074,17 @@ def dataframe_with_optional_selection(table: pd.DataFrame):
     work = table.copy()
     current_idx = int(st.session_state.get("detail_idx", 0)) if len(work) else 0
     current_idx = max(0, min(current_idx, len(work) - 1)) if len(work) else 0
-    work.insert(0, "선택", False)
+    work.insert(0, "Select", False)
     if len(work):
-        work.loc[current_idx, "선택"] = True
+        work.loc[current_idx, "Select"] = True
 
-    disabled_cols = [c for c in work.columns if c != "선택"]
+    disabled_cols = [c for c in work.columns if c != "Select"]
     column_config = {
-        "선택": st.column_config.CheckboxColumn("상세", width="small"),
-        "순위": st.column_config.NumberColumn(width="small"),
-        "종목코드": st.column_config.TextColumn(width="small"),
-        "종목명": st.column_config.TextColumn(width="medium"),
-        "그룹": st.column_config.TextColumn(width="medium"),
+        "Select": st.column_config.CheckboxColumn("Detail", width="small"),
+        "Rank": st.column_config.NumberColumn(width="small"),
+        "Ticker": st.column_config.TextColumn(width="small"),
+        "Company": st.column_config.TextColumn(width="medium"),
+        "Group": st.column_config.TextColumn(width="medium"),
     }
 
     edited = st.data_editor(
@@ -1050,7 +1098,7 @@ def dataframe_with_optional_selection(table: pd.DataFrame):
     )
 
     try:
-        selected_rows = edited.index[edited["선택"] == True].tolist()
+        selected_rows = edited.index[edited["Select"] == True].tolist()
         if selected_rows:
             return int(selected_rows[-1])
     except Exception:
@@ -1059,85 +1107,86 @@ def dataframe_with_optional_selection(table: pd.DataFrame):
 
 
 def main():
-    st.markdown("# 📈 피터린치 + 그레이엄 투자 스크리닝 대시보드")
+    st.markdown("# Fundamental Screening Dashboard")
     st.markdown(
         "<div class='small-muted'>기본 판정은 3년 기준을 중심으로 보고, 탐색용으로 1년·3년·5년·자동 기준을 바꿔 비교합니다.</div>",
         unsafe_allow_html=True,
     )
 
     with st.sidebar:
-        st.markdown("## 🎯 대시보드 설정")
-        market = st.radio("시장 선택", options=["KOSPI", "KOSDAQ"], horizontal=True)
+        st.markdown("## Dashboard Settings")
+        market = st.radio("Market", options=["KOSPI", "KOSDAQ"], horizontal=True)
 
     df, latest_file = load_screening_data(market)
     if df is not None:
         df = enrich_display_groups(df)
     if df is None:
-        st.warning(f"{market} 스크리닝 데이터를 찾을 수 없습니다.")
-        st.code("results/kospi_screening_YYYYMMDD_checked.tsv 또는 results/kospi_screening_YYYYMMDD_sorted.tsv")
+        st.warning(f"{market} screening data was not found.")
+        st.code("results/kospi_screening_YYYYMMDD_checked.tsv or results/kospi_screening_YYYYMMDD_sorted.tsv")
         return
 
     with st.sidebar:
         st.markdown("---")
-        st.markdown("### 예외 필터")
-        require_net_cash = st.checkbox("주당순현금(린치식) > 0", value=False)
-        require_fcf = st.checkbox("주당잉여현금흐름 > 0", value=False)
-        require_no_short_risky_debt = st.checkbox("단기위험부채 없음 (0 또는 공란)", value=False)
+        st.markdown("### Exception Filters")
+        require_net_cash = st.checkbox("Net Cash / Share (Lynch-style) > 0", value=False)
+        require_fcf = st.checkbox("FCF / Share > 0", value=False)
+        require_no_short_risky_debt = st.checkbox("No short-term risk debt (0 or blank)", value=False)
 
         st.markdown("---")
-        st.markdown("### 표시 옵션")
-        show_reason_cols = st.checkbox("비고/사유 열 함께 보기", value=False)
-        show_excash_pe = st.checkbox("순현금차감PER 표시", value=False)
+        st.markdown("### Display Options")
+        show_reason_cols = st.checkbox("Show notes / reason columns", value=False)
+        show_excash_pe = st.checkbox("Show Ex-Cash P/E", value=False)
 
         st.markdown("---")
-        if st.button("🔄 새로고침", use_container_width=True):
+        if st.button("🔄 Refresh", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
         st.markdown("---")
-        with st.expander("🔎 지표/예외 필터 해석", expanded=False):
+        with st.expander("Metric / Exception Filter Guide", expanded=False):
             render_method_text()
             st.markdown("""
 ---
-**단기위험부채로 보는 항목**  
-단기차입금, 유동차입금, 기업어음, 상업어음, 전자단기사채를 총액으로 묶어 봅니다. `> 0`이면 단기 차환·상환 부담이 있다는 뜻이라 별도 주의 신호로 봅니다.
+**Short-term risk debt items**
 
-**주당순현금 음수 / FCF 음수를 감안해서 볼 수 있는 업종**
-- **금융·은행·보험·증권**: 예금, 보험부채, 레버리지 자체가 영업모델의 일부라 제조업식 순현금 기준이 왜곡될 수 있습니다. 이 경우 순현금보다 자본적정성, 손해율, NIM, 충당금, ROE를 같이 봐야 합니다.
-- **통신·유틸리티·전력·에너지 인프라**: 네트워크·발전설비·인프라 투자가 커서 구조적으로 부채와 감가상각이 큽니다. FCF가 특정 연도에 약해도 요금규제, 장기계약, 설비투자 사이클을 같이 봐야 합니다.
-- **철강·화학·정유·조선·건설 등 자본집약/사이클 업종**: 재고, 운전자본, 수주·CAPEX 사이클 때문에 FCF와 순현금이 크게 흔들릴 수 있습니다. 업황 저점/고점과 부채 만기구조를 같이 확인해야 합니다.
-- **반도체·2차전지처럼 대규모 증설 업종**: 성장투자 구간에서는 FCF 음수가 일시적으로 나올 수 있습니다. 다만 증설이 수익성으로 연결되는지와 차입 부담을 같이 봐야 합니다.
+The screener treats short-term borrowings, current borrowings, commercial paper, trade bills, and short-term electronic bonds as short-term risk debt. If the value is greater than zero, it is interpreted as a separate liquidity risk signal.
 
+**Sectors where negative net cash or negative FCF require context**
+
+- **Financials / Banks / Insurance / Securities**: deposits, insurance liabilities, and leverage are part of the business model. Capital adequacy, loss ratio, NIM, provisions, and ROE should be checked together.
+- **Telecom / Utilities / Power / Energy Infrastructure**: infrastructure CAPEX, regulated pricing, long-term contracts, and investment cycles can distort FCF and debt metrics.
+- **Steel / Chemicals / Refining / Shipbuilding / Construction**: working capital, inventory, order cycles, and CAPEX cycles can make FCF and net cash volatile.
+- **Semiconductors / Batteries and other expansion-heavy sectors**: FCF can be temporarily negative during investment phases, so debt burden and future profitability should be reviewed together.
             """)
 
-    st.markdown("### 판정 필터")
-    st.caption("판정은 정렬이 아니라 필터입니다. 아무것도 선택하지 않으면 전체를 보여줍니다.")
+    st.markdown("### Signal Filters")
+    st.caption("Signals are filters, not ranking rules. If nothing is selected, all rows are shown.")
 
     # Actions 결과에서 파생 판정 컬럼이 비어 있을 수 있어, 필터 옵션도 3년 기준으로 1차 복구해서 만든다.
-    filter_option_df = repair_derived_metrics(df, "3년")
+    filter_option_df = repair_derived_metrics(df, "3Y")
 
     f1, f2, f3 = st.columns(3)
     with f1:
-        selected_overall = set(st.multiselect("종합판정 (with filter)", unique_values(filter_option_df, "종합판정"), default=[], placeholder="전체"))
+        selected_overall = set(st.multiselect("Overall Signal", unique_values(filter_option_df, "종합판정"), default=[], placeholder="All", format_func=display_text))
     with f2:
-        selected_lynch = set(st.multiselect("린치PER판정* (Ex-Cash PEG)", unique_values(filter_option_df, "린치PER판정"), default=[], placeholder="전체"))
+        selected_lynch = set(st.multiselect("Lynch-style Signal* (Ex-Cash PEG)", unique_values(filter_option_df, "린치PER판정"), default=[], placeholder="All", format_func=display_text))
     with f3:
-        selected_dividend = set(st.multiselect("배당감안판정* (Ex-Cash PEGY)", unique_values(filter_option_df, "배당감안점수판정"), default=[], placeholder="전체"))
+        selected_dividend = set(st.multiselect("Dividend-adjusted Signal* (Ex-Cash PEGY)", unique_values(filter_option_df, "배당감안점수판정"), default=[], placeholder="All", format_func=display_text))
 
     st.markdown("---")
-    st.markdown(f"### {market} 유망주 랭킹")
-    st.caption("정렬: 린치PER배수 낮은순 → 배당감안점수 높은순 → 선택 EPS성장률 높은순 → 선택 그레이엄괴리율 높은순이 기본입니다.")
+    st.markdown(f"### {market} Screening Ranking")
+    st.caption("Default sorting: lower Lynch-style ratio → higher dividend-adjusted score → higher selected EPS growth → higher selected Graham gap.")
 
     ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 1.2])
     with ctrl1:
-        eps_basis = st.selectbox("EPS 성장률 기준", ["1년", "3년", "5년", "자동"], index=1)
+        eps_basis = st.selectbox("EPS Growth Basis", ["1Y", "3Y", "5Y", "Auto"], index=1)
     with ctrl2:
-        graham_basis = st.selectbox("그레이엄 괴리율 기준", ["1년", "3년", "5년", "자동"], index=1)
+        graham_basis = st.selectbox("Graham Gap Basis", ["1Y", "3Y", "5Y", "Auto"], index=1)
     with ctrl3:
-        sort_mode = st.selectbox("정렬 우선 방식", list(SORT_MODE_SPECS.keys()), index=0)
+        sort_mode = st.selectbox("Sorting Priority", list(SORT_MODE_SPECS.keys()), index=0)
 
     st.markdown(
-        f"<div class='info-box'>현재 기준: EPS성장률 <b>{eps_basis}</b> / 그레이엄괴리율 <b>{graham_basis}</b> / 정렬 <b>{sort_mode}</b> / 데이터 <b>{Path(str(latest_file)).name if latest_file else '-'}</b></div>",
+        f"<div class='info-box'>Current basis: EPS growth <b>{eps_basis}</b> / Graham gap <b>{graham_basis}</b> / sorting <b>{sort_mode}</b> / data <b>{Path(str(latest_file)).name if latest_file else '-'}</b></div>",
         unsafe_allow_html=True,
     )
 
@@ -1154,18 +1203,18 @@ def main():
     ranked_df = sort_dashboard(filtered_df, sort_mode)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📊 전체 종목 수", len(df))
-    c2.metric("✅ 현재 표시 종목 수", len(ranked_df))
+    c1.metric("📊 Total Companies", len(df))
+    c2.metric("✅ Displayed Companies", len(ranked_df))
     latest_path = Path(str(latest_file)) if latest_file else None
     if latest_path is not None and latest_path.exists():
         update_datetime = datetime.fromtimestamp(latest_path.stat().st_mtime).strftime("%m-%d %H:%M")
     else:
-        update_datetime = "파일 갱신 확인 필요"
-    c3.metric("🕐 마지막 업데이트", update_datetime)
-    c4.metric("🏭 그룹 수", df["그룹"].nunique() if "그룹" in df.columns else 0)
+        update_datetime = "Check file update"
+    c3.metric("🕐 Last Update", update_datetime)
+    c4.metric("🏭 Group Count", df["그룹"].nunique() if "그룹" in df.columns else 0)
 
     if ranked_df.empty:
-        st.warning("필터 조건에 맞는 종목이 없습니다. 판정 필터 또는 예외 필터를 완화해보세요.")
+        st.warning("No companies match the current filters. Relax the signal filters or exception filters.")
         return
 
     display_df = ranked_df.copy().reset_index(drop=True)
@@ -1175,26 +1224,26 @@ def main():
         "순위", "종목코드", "종목명", "그룹", "판정구분",
         "종합판정", "린치PER배수", "린치PER판정", "배당감안점수", "배당감안점수판정",
         "성장률 기준", "비교 EPS성장률(%)", "그레이엄 기준", "비교 그레이엄괴리율(%)",
-        "배당수익률(%)", "주당순현금(린치식)", "주당잉여현금흐름", "단기위험부채",
+        "Dividend Yield (%)", "Net Cash / Share (Lynch-style)", "FCF / Share", "Short-term Risk Debt",
     ]
 
     if show_excash_pe:
         display_cols += ["순현금차감PER(린치식)"]
     if show_reason_cols:
-        display_cols += ["하드필터사유", "종합판정사유", "비고"]
+        display_cols += ["하드필터사유", "종합판정사유", "Notes"]
 
     display_cols = without_timing(display_cols)
     table = present_table(display_df, display_cols)
     table = table.rename(columns={
-        "종합판정": "종합판정 (with filter)",
-        "린치PER배수": "린치PER배수*",
-        "린치PER판정": "린치PER판정* (Ex-Cash PEG)",
-        "배당감안점수": "배당감안점수*",
-        "배당감안점수판정": "배당감안판정* (Ex-Cash PEGY)",
-        "성장률 기준": "EPS 성장률 기준",
-        "비교 EPS성장률(%)": "비교 EPS성장률(%)",
-        "그레이엄 기준": "그레이엄 괴리율 기준",
-        "비교 그레이엄괴리율(%)": "비교 그레이엄괴리율(%)",
+        "Overall Signal": "Overall Signal (with filter)",
+        "Lynch-style Ratio*": "Lynch-style Ratio*",
+        "Lynch-style Signal*": "Lynch-style Signal* (Ex-Cash PEG)",
+        "Dividend-adjusted Score*": "Dividend-adjusted Score*",
+        "Dividend-adjusted Signal*": "Dividend-adjusted Signal* (Ex-Cash PEGY)",
+        "EPS Growth Basis": "EPS Growth Basis",
+        "EPS Growth for Comparison (%)": "EPS Growth for Comparison (%)",
+        "Graham Gap Basis": "Graham Gap Basis",
+        "Graham Gap for Comparison (%)": "Graham Gap for Comparison (%)",
     })
 
     clicked_pos = dataframe_with_optional_selection(table)
@@ -1205,11 +1254,11 @@ def main():
 
     selected_idx = max(0, min(int(st.session_state.get("detail_idx", 0)), len(display_df) - 1))
     selected_row = display_df.iloc[selected_idx]
-    st.caption("표 왼쪽의 상세 체크박스를 선택하면 아래 상세가 해당 종목으로 바뀝니다.")
+    st.caption("Select the detail checkbox on the left side of the table to update the detail panel below.")
     render_detail(selected_row, show_excash_pe=show_excash_pe)
 
     st.markdown("---")
-    st.caption("이 대시보드는 정보 제공용이며 투자 판단은 본인 책임입니다.")
+    st.caption("This dashboard is for educational, research, and software engineering portfolio purposes only. It is not financial advice or an investment recommendation.")
 
 
 if __name__ == "__main__":
